@@ -81,7 +81,7 @@ class ConversationsController extends Controller
                     // Without reflash green flash will not be displayed on assignee change
                     \Session::reflash();
                     //$request->session()->reflash();
-                    return redirect()->away($conversation->url($conversation->folder_id));
+                    return redirect()->away(self::maybe_add_xembed_to_url($conversation->url($conversation->folder_id)));
                 }
                 // If conversation assigned to user, select Mine folder instead of Assigned
                 if ($folder->type == Folder::TYPE_ASSIGNED && $conversation->user_id == $user->id) {
@@ -92,7 +92,7 @@ class ConversationsController extends Controller
 
                     \Session::reflash();
 
-                    return redirect()->away($conversation->url($folder->id));
+                    return redirect()->away(self::maybe_add_xembed_to_url($conversation->url($folder->id)));
                 }
             }
         }
@@ -2218,12 +2218,13 @@ class ConversationsController extends Controller
 
         if ( isset($referrer_args['x_embed'])) {
             if (is_string($redirect_url)) {
-                $redirect_url = self::addQueryArgs( array('x_embed'=>1), $redirect_url);
+                return self::addQueryArgs( array('x_embed'=>1), $redirect_url);
             } else if (isset($redirect_url->redirect_url)) {
                 $redirect_url->redirect_url = self::addQueryArgs( array('x_embed'=>1), $redirect_url->redirect_url);
+                return $redirect_url;
             } 
         }
-
+        return $redirect_url;
     }
 
     private static function addQueryArgs(array $params, string $url)
@@ -2617,7 +2618,7 @@ class ConversationsController extends Controller
         if ($thread->created_at->diffInSeconds(now()) > Conversation::UNDO_TIMOUT) {
             \Session::flash('flash_error_floating', __('Sending can not be undone'));
 
-            return redirect()->away($conversation->url($conversation->folder_id));
+            return redirect()->away(self::maybe_add_xembed_to_url($conversation->url($conversation->folder_id)));
         }
 
         // Convert reply into draft
@@ -2661,7 +2662,7 @@ class ConversationsController extends Controller
             }
         }
 
-        return redirect()->away($conversation->url($folder_id, null, ['show_draft' => $thread->id]));
+        return redirect()->away(self::maybe_add_xembed_to_url($conversation->url($folder_id, null, ['show_draft' => $thread->id])));
     }
 
     /**
