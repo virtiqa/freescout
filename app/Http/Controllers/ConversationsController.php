@@ -451,7 +451,7 @@ class ConversationsController extends Controller
                     $redirect_same_page = false;
                     if ($request->status == 'not_spam') {
                         // Stay on the current page
-                        $response['redirect_url'] = $conversation->url();
+                        $response['redirect_url'] = self::maybe_add_xembed_to_url($conversation->url());
                         $redirect_same_page = true;
                     } else {
                         $response['redirect_url'] = $this->getRedirectUrl($request, $conversation, $user);
@@ -2202,6 +2202,13 @@ class ConversationsController extends Controller
             $redirect_url = $conversation->url();
         }
 
+        $redirect_url = self::maybe_add_xembed_to_url($redirect_url);
+
+        return $redirect_url;
+    }
+
+    private static function maybe_add_xembed_to_url($redirect_url)
+    {
         $referrer_args = array();
         $referrer_args_string = parse_url( request()->server('HTTP_REFERER'),PHP_URL_QUERY);
 
@@ -2217,7 +2224,6 @@ class ConversationsController extends Controller
             } 
         }
 
-        return $redirect_url;
     }
 
     private static function addQueryArgs(array $params, string $url)
