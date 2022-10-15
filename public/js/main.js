@@ -863,7 +863,7 @@ function fsAjax(data, url, success_callback, no_loader, error_callback, custom_o
                 }
 
             }
-            if (typeof success_callback != function) {
+            if (typeof success_callback != 'function') {
                 return;
             }
             return success_callback(response);
