@@ -1374,6 +1374,9 @@ thead .conv-cb label {
     vertical-align: middle;
     border-bottom: 1px solid #e3e8eb;
 }
+.table.table-conversations tbody .conv-row-extended td {
+    border-bottom: 0!important;
+}
 .table-conversations td a {
     color: #2a3b47;
     display: block;
@@ -1833,6 +1836,12 @@ button.conv-checkbox-clear {
 }
 .conv-subj-block {
     padding: 16px 9px 18px 20px;
+}
+.conv-following .conv-subjtext > span:before {
+    content: "🔔 ";
+    font-size: 15px;
+    position: relative;
+    top: -3px;
 }
 .conv-top-block {
     border-top: 1px solid #e3e8eb;
@@ -2746,7 +2755,7 @@ ul.sidebar-block-list {
         width: 100%;
         padding-right: 0;
         position: static;
-        background-color: #fff;
+        /*background-color: #fff;*/
         height: auto;
     }
     #conv-layout-customer {
@@ -2904,9 +2913,7 @@ ul.sidebar-block-list {
 /**
  * Subscriptions
  */
-.subscriptions-email,
-.subscriptions-browser,
-.subscriptions-mobile {
+.subs-cb {
     text-align: center;
 }
 .user-subscriptions {
@@ -4311,6 +4318,9 @@ a.disabled:focus {
     padding: 2px 4px 1px 4px;
     line-height: 14px;
     margin: 0 4px 0 0;
+}
+.fs-tag a {
+    color: #fff!important;
 }
 .fs-tag-name,
 .fs-tag-name:hover,

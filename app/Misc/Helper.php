@@ -26,6 +26,11 @@ class Helper
     const QUEUE_DEFAULT = 'default';
 
     /**
+     * Limit for IN queries.
+     */
+    const IN_LIMIT = 1000;
+
+    /**
      * Stores list of global entities (for caching).
      */
     public static $global_entities = [];
@@ -148,6 +153,9 @@ class Helper
         ],
         'ar-BH' => ['name'          => 'العربية',
                     'name_en'       => 'Arabic (Bahrain)',
+        ],
+        'az' => ['name'          => 'Azerbaijani',
+                    'name_en'       => 'Azerbaijani',
         ],
         'eu' => ['name'          => 'Euskara',
                  'name_en'       => 'Basque',
@@ -1459,7 +1467,7 @@ class Helper
         try {
             $headers = get_headers($uri);
 
-            if (!preg_match("/200/", $headers[0])) {
+            if (!preg_match("/(200|301|302)/", $headers[0])) {
                 return false;
             }
 
@@ -1556,7 +1564,7 @@ class Helper
     /**
      * Fix and parse date to Carbon.
      */
-    public static function parseDateToCarbon($date)
+    public static function parseDateToCarbon($date, $current_if_invalid = true)
     {
         if (preg_match('/\+0580/', $date)) {
             $date = str_replace('+0580', '+0530', $date);
@@ -1584,7 +1592,11 @@ class Helper
             try {
                 return Carbon::parse($date);
             } catch (\Exception $_e) {
-                return Carbon::now();
+                if ($current_if_invalid) {
+                    return Carbon::now();
+                } else {
+                    return null;
+                }
             }
         }
 

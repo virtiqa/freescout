@@ -7,6 +7,7 @@
 namespace App;
 
 use App\Email;
+use App\Follower;
 use App\Mail\PasswordChanged;
 use App\Mail\UserInvite;
 use App\Notifications\WebsiteNotification;
@@ -33,6 +34,8 @@ class User extends Authenticatable
     const EMAIL_MAX_LENGTH = 100;
 
     const EMAIL_DELETED_SUFFIX = '_deleted';
+
+    const DEFAULT_TIMEZONE = 'UTC';
 
     /**
      * Roles.
@@ -975,7 +978,7 @@ class User extends Authenticatable
      */
     public static function nonDeleted()
     {
-        return self::where('status', '!=', self::STATUS_DELETED);
+        return \Eventy::filter('user.non_deleted_condition', self::where('status', '!=', self::STATUS_DELETED));
     }
 
     public function isActive()
@@ -1098,6 +1101,18 @@ class User extends Authenticatable
             return true;
         } else {
             return false;
+        }
+    }
+
+    public function followConversation($conversation_id)
+    {
+        try {
+            $follower = new Follower();
+            $follower->conversation_id = $conversation_id;
+            $follower->user_id = $this->id;
+            $follower->save();
+        } catch (\Exception $e) {
+            // Already exists
         }
     }
 }

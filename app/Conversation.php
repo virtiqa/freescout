@@ -194,6 +194,11 @@ class Conversation extends Model
     public static $starred_conversation_ids = [];
 
     /**
+     * Cache of the app.custom_number option.
+     */
+    public static $custom_number_cache = null;
+
+    /**
      * Automatically converted into Carbon dates.
      */
     protected $dates = ['created_at', 'updated_at', 'last_reply_at', 'closed_at', 'user_updated_at'];
@@ -202,6 +207,13 @@ class Conversation extends Model
      * Attributes which are not fillable using fill() method.
      */
     protected $guarded = ['id', 'folder_id'];
+
+    /**
+     * Default values.
+     */
+    protected $attributes = [
+        'preview' => '',
+    ];
 
     protected static function boot()
     {
@@ -558,6 +570,15 @@ class Conversation extends Model
             default:
                 return '';
                 break;
+        }
+    }
+
+    public function getStatus()
+    {
+        if (array_key_exists($this->status, self::$statuses)) {
+            return $this->status;
+        } else {
+            return self::STATUS_ACTIVE;
         }
     }
 
@@ -1601,6 +1622,20 @@ class Conversation extends Model
         return $viewers;
     }
 
+    public function changeState($new_state, $user = null)
+    {
+        if (!array_key_exists($new_state, self::$states)) {
+            return;
+        }
+        
+        $prev_state = $this->state;
+
+        $this->state = $new_state;
+        $this->save();
+
+        \Eventy::action('conversation.state_changed', $this, $user, $prev_state);
+    }
+
     public function changeStatus($new_status, $user, $create_thread = true)
     {
         if (!array_key_exists($new_status, self::$statuses)) {
@@ -1665,6 +1700,7 @@ class Conversation extends Model
     {
         $folder_id = $this->getCurrentFolder();
 
+        $prev_state = $this->state;
         $this->state = Conversation::STATE_DELETED;
         $this->user_updated_at = date('Y-m-d H:i:s');
         $this->updateFolder();
@@ -1692,6 +1728,7 @@ class Conversation extends Model
         $this->mailbox->updateFoldersCounters();
 
         \Eventy::action('conversation.deleted', $this, $user);
+        \Eventy::action('conversation.state_changed', $this, $user, $prev_state);
     }
 
     public function deleteForever()
@@ -1704,16 +1741,20 @@ class Conversation extends Model
         \Eventy::action('conversations.before_delete_forever', $conversation_ids);
 
         //$conversation_ids = $conversations->pluck('id')->toArray();
+        for ($i=0; $i < ceil(count($conversation_ids) / \Helper::IN_LIMIT); $i++) { 
 
-        // Delete attachments.
-        $thread_ids = Thread::whereIn('conversation_id', $conversation_ids)->pluck('id')->toArray();
-        Attachment::deleteByThreadIds($thread_ids);
+            $ids = array_slice($conversation_ids, $i*\Helper::IN_LIMIT, \Helper::IN_LIMIT);
 
-        // Delete threads.
-        Thread::whereIn('conversation_id', $conversation_ids)->delete();
-        // Delete conversations.
-        Conversation::whereIn('id', $conversation_ids)->delete();
-        ConversationFolder::whereIn('conversation_id', $conversation_ids)->delete();
+            // Delete attachments.
+            $thread_ids = Thread::whereIn('conversation_id', $ids)->pluck('id')->toArray();
+            Attachment::deleteByThreadIds($thread_ids);
+
+            // Delete threads.
+            Thread::whereIn('conversation_id', $ids)->delete();
+            // Delete conversations.
+            Conversation::whereIn('id', $ids)->delete();
+            ConversationFolder::whereIn('conversation_id', $ids)->delete();
+        }
     }
 
     /**
@@ -1789,8 +1830,8 @@ class Conversation extends Model
 
         // Set forwarding meta data.
         $thread->subtype = Thread::SUBTYPE_FORWARD;
-        $thread->setMeta('forward_child_conversation_number', $forwarded_conversation->number);
-        $thread->setMeta('forward_child_conversation_id', $forwarded_conversation->id);
+        $thread->setMeta(Thread::META_FORWARD_CHILD_CONVERSATION_NUMBER, $forwarded_conversation->number);
+        $thread->setMeta(Thread::META_FORWARD_CHILD_CONVERSATION_ID, $forwarded_conversation->id);
 
         $thread->save();
 
@@ -1802,9 +1843,9 @@ class Conversation extends Model
         // if ($attachments_info['has_attachments']) {
         //     $forwarded_thread->has_attachments = true;
         // }
-        $forwarded_thread->setMeta('forward_parent_conversation_number', $this->number);
-        $forwarded_thread->setMeta('forward_parent_conversation_id', $this->id);
-        $forwarded_thread->setMeta('forward_parent_thread_id', $thread->id);
+        $forwarded_thread->setMeta(Thread::META_FORWARD_PARENT_CONVERSATION_NUMBER, $this->number);
+        $forwarded_thread->setMeta(Thread::META_FORWARD_PARENT_CONVERSATION_ID, $this->id);
+        $forwarded_thread->setMeta(Thread::META_FORWARD_PARENT_THREAD_ID, $thread->id);
         $forwarded_thread->save();
 
         // Add attachments if needed.
@@ -2054,7 +2095,7 @@ class Conversation extends Model
             $query_conversations->where(function ($query) use ($like, $filters, $q) {
                 $query->where('conversations.subject', 'like', $like)
                     ->orWhere('conversations.customer_email', 'like', $like)
-                    ->orWhere('conversations.number', (int)$q)
+                    ->orWhere('conversations.'.self::numberFieldName(), (int)$q)
                     ->orWhere('conversations.id', (int)$q)
                     ->orWhere('threads.body', 'like', $like)
                     ->orWhere('threads.from', 'like', $like)
@@ -2068,6 +2109,9 @@ class Conversation extends Model
 
         // Apply search filters.
         if (!empty($filters['assigned'])) {
+            if ($filters['assigned'] == self::USER_UNASSIGNED) {
+                $filters['assigned'] = null;
+            }
             $query_conversations->where('conversations.user_id', $filters['assigned']);
         }
         if (!empty($filters['customer'])) {
@@ -2078,7 +2122,12 @@ class Conversation extends Model
             });
         }
         if (!empty($filters['mailbox'])) {
-            $query_conversations->where('conversations.mailbox_id', '=', $filters['mailbox']);
+            if ($user->hasAccessToMailbox($filters['mailbox'])) {
+                // Check if the user has access to the mailbox.
+                $query_conversations->where('conversations.mailbox_id', '=', $filters['mailbox']);
+            } else {
+                unset($filters['mailbox']);
+            }
         }
         if (!empty($filters['status'])) {
             if (count($filters['status']) == 1) {
@@ -2110,7 +2159,7 @@ class Conversation extends Model
             $query_conversations->where('threads.body', 'like', '%'.mb_strtolower($filters['body']).'%');
         }
         if (!empty($filters['number'])) {
-            $query_conversations->where('conversations.number', '=', $filters['number']);
+            $query_conversations->where('conversations.'.self::numberFieldName(), '=', $filters['number']);
         }
         if (!empty($filters['following'])) {
             if ($filters['following'] == 'yes') {
@@ -2142,6 +2191,30 @@ class Conversation extends Model
         $query_conversations->orderBy('conversations.last_reply_at', 'DESC');
 
         return $query_conversations;
+    }
+
+    public function getNumberAttribute($value)
+    {
+        if (self::$custom_number_cache === null) {
+            self::$custom_number_cache = config('app.custom_number');
+        }
+        if (self::$custom_number_cache) {
+            return $value;
+        } else {
+            return $this->id;
+        }
+    }
+
+    public static function numberFieldName()
+    {
+        if (self::$custom_number_cache === null) {
+            self::$custom_number_cache = config('app.custom_number');
+        }
+        if (self::$custom_number_cache) {
+            return 'number';
+        } else {
+            return 'id';
+        }
     }
 
     // /**

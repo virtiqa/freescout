@@ -76,7 +76,7 @@ class SendReplyToCustomer implements ShouldQueue
                 $forwarded_replies = $forwarded_replies->sortByDesc(function ($item, $key) {
                     return $item->created_at;
                 });
-                $forward_parent_thread = Thread::find($forward_child_thread->getMeta('forward_parent_thread_id'));
+                $forward_parent_thread = Thread::find($forward_child_thread->getMetaFw(Thread::META_FORWARD_PARENT_THREAD_ID));
 
                 if ($forward_parent_thread) {
                     // Remove threads created after forwarding.
@@ -125,6 +125,8 @@ class SendReplyToCustomer implements ShouldQueue
 
         // Conversation history.
         $email_conv_history = config('app.email_conv_history');
+
+        $threads_count = count($this->threads);
 
         $meta_conv_history = $this->last_thread->getMeta(Thread::META_CONVERSATION_HISTORY);
         if (!empty($meta_conv_history)) {
@@ -213,7 +215,7 @@ class SendReplyToCustomer implements ShouldQueue
 
         $headers['X-FreeScout-Mail-Type'] = 'customer.message';
 
-        $reply_mail = new ReplyToCustomer($this->conversation, $this->threads, $headers, $mailbox);
+        $reply_mail = new ReplyToCustomer($this->conversation, $this->threads, $headers, $mailbox, $threads_count);
 
         try {
             Mail::to($to)
@@ -277,6 +279,8 @@ class SendReplyToCustomer implements ShouldQueue
                 $envelope['from'] = $mailbox->getMailFrom(null, $this->conversation)['address'];
                 $envelope['to'] = $this->customer_email;
                 $envelope['subject'] = 'Re: ' . $this->conversation->subject;
+                $envelope['date'] = now()->toRfc2822String();
+                $envelope['message_id'] = $this->message_id;
 
                 // Get penultimate email Message-Id if reply
                 if (!$new && !empty($last_customer_thread) && $last_customer_thread->message_id) {
@@ -289,6 +293,7 @@ class SendReplyToCustomer implements ShouldQueue
                 $part1['type'] = TYPETEXT;
                 $part1['subtype'] = 'html';
                 $part1['contents.data'] = $reply_mail->render();
+                $part1['charset'] = 'utf-8';
 
                 try {
                     // getFolder does not work if sent folder has spaces.

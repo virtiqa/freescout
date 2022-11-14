@@ -18,7 +18,7 @@
 @section('content')
     @include('partials/flash_messages')
 
-    <div id="conv-layout" class="conv-type-{{ strtolower($conversation->getTypeName()) }}">
+    <div id="conv-layout" class="conv-type-{{ strtolower($conversation->getTypeName()) }} @if ($is_following) conv-following @endif">
         <div id="conv-layout-header">
             <div id="conv-toolbar">
 
@@ -45,9 +45,7 @@
                                 <a href="#" class="conv-follow @if ($is_following) hidden @endif" data-follow-action="follow" role="button"><i class="glyphicon glyphicon-bell"></i> {{ __("Follow") }}</a>
                                 <a href="#" class="conv-follow @if (!$is_following) hidden @endif" data-follow-action="unfollow" role="button"><i class="glyphicon glyphicon-bell"></i> {{ __("Unfollow") }}</a>
                             </li>
-                            @if (!$conversation->isChat())
-                                <li><a href="#" class="conv-forward" role="button"><i class="glyphicon glyphicon-arrow-right"></i> {{ __("Forward") }}</a></li>
-                            @endif
+                            <li><a href="#" class="conv-forward" role="button"><i class="glyphicon glyphicon-arrow-right"></i> {{ __("Forward") }}</a></li>
                             @if (!$conversation->isChat())
                                 <li><a href="{{ route('conversations.ajax_html', array_merge(['action' =>
                         'merge_conv'], \Request::all(), ['conversation_id' => $conversation->id]) ) }}" data-trigger="modal" data-modal-title="{{ __("Merge Conversations") }}" data-modal-no-footer="true" data-modal-on-show="initMergeConv" role="button"><i class="glyphicon glyphicon-indent-left"></i> {{ __("Merge") }}</a></li>
@@ -94,8 +92,8 @@
                     <li>
                         <div class="btn-group" id="conv-status" data-toggle="tooltip" title="{{ __("Status") }}: {{ $conversation->getStatusName() }}">
                             @if ($conversation->state != App\Conversation::STATE_DELETED)
-                                <button type="button" class="btn btn-{{ App\Conversation::$status_classes[$conversation->status] }} btn-light conv-info-icon" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" aria-label="{{ __("Status") }}: {{ $conversation->getStatusName() }}"><i class="glyphicon glyphicon-{{ App\Conversation::$status_icons[$conversation->status] }}"></i></button>
-                                <button type="button" class="btn btn-{{ App\Conversation::$status_classes[$conversation->status] }} btn-light dropdown-toggle conv-info-val" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" aria-label="{{ __("Status") }}">
+                                <button type="button" class="btn btn-{{ App\Conversation::$status_classes[$conversation->getStatus()] }} btn-light conv-info-icon" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" aria-label="{{ __("Status") }}: {{ $conversation->getStatusName() }}"><i class="glyphicon glyphicon-{{ App\Conversation::$status_icons[$conversation->getStatus()] }}"></i></button>
+                                <button type="button" class="btn btn-{{ App\Conversation::$status_classes[$conversation->getStatus()] }} btn-light dropdown-toggle conv-info-val" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" aria-label="{{ __("Status") }}">
                                     <span>{{ $conversation->getStatusName() }}</span> <span class="caret"></span>
                                 </button>
                                 <ul class="dropdown-menu conv-status">
@@ -277,6 +275,7 @@
                         <div class="glyphicon glyphicon-list-alt" data-toggle="tooltip" title="{{ __("Previous Conversations") }}"></div>
                     </div>--}}
                 </div>
+                @action('conversation.before_prev_convs', $customer, $conversation, $mailbox)
                 @if (count($prev_conversations))
                     @include('conversations/partials/prev_convs_short')
                 @endif
