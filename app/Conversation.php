@@ -209,6 +209,13 @@ class Conversation extends Model
     protected $guarded = ['id', 'folder_id'];
 
     /**
+     * Convert to array.
+     */
+    protected $casts = [
+        'meta' => 'array',
+    ];
+
+    /**
      * Default values.
      */
     protected $attributes = [
@@ -497,6 +504,11 @@ class Conversation extends Model
     public function isSpam()
     {
         return $this->status == self::STATUS_SPAM;
+    }
+
+    public function isClosed()
+    {
+        return $this->status == self::STATUS_CLOSED;
     }
 
     /**
@@ -1749,6 +1761,8 @@ class Conversation extends Model
             $thread_ids = Thread::whereIn('conversation_id', $ids)->pluck('id')->toArray();
             Attachment::deleteByThreadIds($thread_ids);
 
+            // Observers do not react on this kind of deleting.
+
             // Delete threads.
             Thread::whereIn('conversation_id', $ids)->delete();
             // Delete conversations.
@@ -2073,35 +2087,50 @@ class Conversation extends Model
     {
         $mailbox_ids = [];
 
-        // Get IDs of mailboxes to which user has access
-        if (empty($filters['mailbox'])) {
-            $mailbox_ids = $user->mailboxesIdsCanView();
-        }
-
         // Like is case insensitive.
         $like = '%'.mb_strtolower($q).'%';
 
         if (!$query_conversations) {
             $query_conversations = Conversation::select('conversations.*');
         }
+		
         // https://github.com/laravel/framework/issues/21242
         // https://github.com/laravel/framework/pull/27675
         $query_conversations->groupby('conversations.id');
 
-        if ($mailbox_ids) {
-            $query_conversations->whereIn('conversations.mailbox_id', $mailbox_ids);
+        if (!empty($filters['mailbox'])) {
+            // Check if the user has access to the mailbox.
+            if ($user->hasAccessToMailbox($filters['mailbox'])) {
+                $mailbox_ids[] = $filters['mailbox'];
+            } else {
+                unset($filters['mailbox']);
+                $mailbox_ids = $user->mailboxesIdsCanView();
+            }
+        } else {
+            // Get IDs of mailboxes to which user has access
+            $mailbox_ids = $user->mailboxesIdsCanView();
         }
+
+        $query_conversations->whereIn('conversations.mailbox_id', $mailbox_ids);
+        
+        $like_op = 'like';
+        if (\Helper::isPgSql()) {
+            $like_op = 'ilike';
+        }
+
         if ($q) {
-            $query_conversations->where(function ($query) use ($like, $filters, $q) {
-                $query->where('conversations.subject', 'like', $like)
-                    ->orWhere('conversations.customer_email', 'like', $like)
+            $query_conversations->where(function ($query) use ($like, $filters, $q, $like_op) {
+                $query->where('conversations.subject', $like_op, $like)
+                    ->orWhere('conversations.customer_email', $like_op, $like)
                     ->orWhere('conversations.'.self::numberFieldName(), (int)$q)
                     ->orWhere('conversations.id', (int)$q)
-                    ->orWhere('threads.body', 'like', $like)
-                    ->orWhere('threads.from', 'like', $like)
-                    ->orWhere('threads.to', 'like', $like)
-                    ->orWhere('threads.cc', 'like', $like)
-                    ->orWhere('threads.bcc', 'like', $like);
+					->orWhere('customers.first_name', $like_op, $like)
+                    ->orWhere('customers.last_name', $like_op, $like)
+                    ->orWhere('threads.body', $like_op, $like)
+                    ->orWhere('threads.from', $like_op, $like)
+                    ->orWhere('threads.to', $like_op, $like)
+                    ->orWhere('threads.cc', $like_op, $like)
+                    ->orWhere('threads.bcc', $like_op, $like);
 
                 $query = \Eventy::filter('search.conversations.or_where', $query, $filters, $q);
             });
@@ -2121,14 +2150,6 @@ class Conversation extends Model
                     ->orWhere('threads.created_by_customer_id', '=', $customer_id);
             });
         }
-        if (!empty($filters['mailbox'])) {
-            if ($user->hasAccessToMailbox($filters['mailbox'])) {
-                // Check if the user has access to the mailbox.
-                $query_conversations->where('conversations.mailbox_id', '=', $filters['mailbox']);
-            } else {
-                unset($filters['mailbox']);
-            }
-        }
         if (!empty($filters['status'])) {
             if (count($filters['status']) == 1) {
                 // = is faster than IN.
@@ -2146,7 +2167,7 @@ class Conversation extends Model
             }
         }
         if (!empty($filters['subject'])) {
-            $query_conversations->where('conversations.subject', 'like', '%'.mb_strtolower($filters['subject']).'%');
+            $query_conversations->where('conversations.subject', $like_op, '%'.mb_strtolower($filters['subject']).'%');
         }
         if (!empty($filters['attachments'])) {
             $has_attachments = ($filters['attachments'] == 'yes' ? true : false);
@@ -2156,7 +2177,7 @@ class Conversation extends Model
             $query_conversations->where('conversations.type', '=', $filters['type']);
         }
         if (!empty($filters['body'])) {
-            $query_conversations->where('threads.body', 'like', '%'.mb_strtolower($filters['body']).'%');
+            $query_conversations->where('threads.body', $like_op, '%'.mb_strtolower($filters['body']).'%');
         }
         if (!empty($filters['number'])) {
             $query_conversations->where('conversations.'.self::numberFieldName(), '=', $filters['number']);
@@ -2179,16 +2200,25 @@ class Conversation extends Model
             $query_conversations->where('conversations.created_at', '<=', date('Y-m-d 23:59:59', strtotime($filters['before'])));
         }
 
-        // Join threads if needed
-        if (!strstr($query_conversations->toSql(), '`threads`.`conversation_id`')) {
+        // Join tables if needed
+        $query_sql = $query_conversations->toSql();
+        if (!strstr($query_sql, '`threads`.`conversation_id`')) {
             $query_conversations->join('threads', function ($join) {
                 $join->on('conversations.id', '=', 'threads.conversation_id');
             });
         }
 
+        if (!strstr($query_sql, '`customers`.`id`')) {
+            $query_conversations->leftJoin('customers', 'conversations.customer_id', '=' ,'customers.id');
+        }
+
         $query_conversations = \Eventy::filter('search.conversations.apply_filters', $query_conversations, $filters, $q);
 
-        $query_conversations->orderBy('conversations.last_reply_at', 'DESC');
+        $sorting = Conversation::getConvTableSorting();
+        if ($sorting['sort_by'] == 'date') {
+            $sorting['sort_by'] = 'last_reply_at';
+        }
+        $query_conversations->orderBy($sorting['sort_by'], $sorting['order']);
 
         return $query_conversations;
     }
@@ -2217,55 +2247,29 @@ class Conversation extends Model
         }
     }
 
-    // /**
-    //  * Get conversation meta data as array.
-    //  */
-    // public function getMetas()
-    // {
-    //     return \Helper::jsonToArray($this->meta);
-    // }
+    /**
+     * Get meta value.
+     */
+    public function getMeta($key, $default = null)
+    {
+        if (isset($this->meta[$key])) {
+            return $this->meta[$key];
+        } else {
+            return $default;
+        }
+    }
 
-    // /**
-    //  * Set conversation meta value.
-    //  */
-    // public function setMetas($data)
-    // {
-    //     $this->meta = json_encode($data);
-    // }
+    /**
+     * Set meta value.
+     */
+    public function setMeta($key, $value, $save = false)
+    {
+        $meta = $this->meta;
+        $meta[$key] = $value;
+        $this->meta = $meta;
 
-    // /**
-    //  * Get conversation meta value.
-    //  */
-    // public function getMeta($key, $default = null)
-    // {
-    //     $metas = $this->getMetas();
-    //     if (isset($metas[$key])) {
-    //         return $metas[$key];
-    //     } else {
-    //         return $default;
-    //     }
-    // }
-
-    // /**
-    //  * Set conversation meta value.
-    //  */
-    // public function setMeta($key, $value)
-    // {
-    //     $metas = $this->getMetas();
-    //     $metas[$key] = $value;
-    //     $this->setMetas($metas);
-    // }
-
-    // /**
-    //  * Create new conversation.
-    //  */
-    // public static function create($data = [], $save = true)
-    // {
-    //     $conversation = new Conversation();
-    //     $conversation->fill($data);
-
-    //     if ($save) {
-    //         $conversation->save();
-    //     }
-    // }
+        if ($save) {
+            $this->save();
+        }
+    }
 }

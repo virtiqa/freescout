@@ -588,6 +588,19 @@ function summernoteInit(selector, new_options)
 	}*/
 
 	$el.summernote(options);
+
+	// To save data when editing the code directly
+	fsFixEditorCodeSaving($el)
+}
+
+// To save data when editing the code directly
+function fsFixEditorCodeSaving($el)
+{
+	$el.next().children().find('.note-codable').on('blur', function() {
+		if ($el.summernote('codeview.isActivated')) {
+			$el.val($el.summernote('code'));
+		}
+	});
 }
 
 function permissionsInit()
@@ -1093,32 +1106,10 @@ function initConversation()
 	    jQuery(".conv-add-note").click(function(e) {
 	    	var reply_block = $(".conv-reply-block");
 	    	if (reply_block.hasClass('hidden')  /*|| $(this).hasClass('inactive')*/) {
-	    		// Show
-				hideActionBlocks();
-				reply_block.removeClass('hidden')
-					.addClass('conv-note-block')
-					.removeClass('conv-forward-block')
-					.children().find(":input[name='is_note']:first").val(1);
-				$('#conv-subject').addClass('action-visible');
-				reply_block.children().find(":input[name='thread_id']:first").val('');
-				reply_block.children().find(":input[name='subtype']:first").val('');
-				//$(".conv-reply-block").children().find(":input[name='body']:first").val('');
-
-				// Note never changes Assignee by default
-				reply_block.children().find(":input[name='user_id']:first").val(getConvData('user_id'));
-
-	    		// Show default status
-	    		var input_status = reply_block.children().find(":input[name='status']:first");
-	    		input_status.val(input_status.attr('data-note-status'));
-
-	    		$(".attachments-upload:first :input, .attachments-upload:first li").remove();
-
-				$(".conv-action").addClass('inactive');
-				$(this).removeClass('inactive');
-				//$('#body').summernote("code", '');
-				$('#body').summernote('focus');
-
-				maybeScrollToReplyBlock();
+    			// To prevent browser autocomplete, clean body
+				// We have to insert this code to allow proper UL/OL
+				setReplyBody('<div><br></div>');
+				showNoteForm();
 			} /*else {
 				// Hide
 				$(".conv-action-block").addClass('hidden');
@@ -1208,6 +1199,12 @@ function initConversation()
 		// Edit thread
 		jQuery(".thread-edit-trigger").click(function(e){
 			editThread($(this));
+			e.preventDefault();
+		});
+
+		// Delete thread
+		jQuery(".thread-delete-trigger").click(function(e){
+			deleteThread($(this));
 			e.preventDefault();
 		});
 
@@ -1361,6 +1358,39 @@ function getConvData(field)
 		return $('.conv-user:first li.active a:first').attr('data-user_id');
 	}
 	return null;
+}
+
+function showNoteForm()
+{
+	var reply_block = $(".conv-reply-block");
+	if (reply_block.hasClass('hidden')  /*|| $(this).hasClass('inactive')*/) {
+		// Show
+		hideActionBlocks();
+		reply_block.removeClass('hidden')
+			.addClass('conv-note-block')
+			.removeClass('conv-forward-block')
+			.children().find(":input[name='is_note']:first").val(1);
+		$('#conv-subject').addClass('action-visible');
+		reply_block.children().find(":input[name='thread_id']:first").val('');
+		reply_block.children().find(":input[name='subtype']:first").val('');
+		//$(".conv-reply-block").children().find(":input[name='body']:first").val('');
+
+		// Note never changes Assignee by default
+		reply_block.children().find(":input[name='user_id']:first").val(getConvData('user_id'));
+
+		// Show default status
+		var input_status = reply_block.children().find(":input[name='status']:first");
+		input_status.val(input_status.attr('data-note-status'));
+
+		$(".attachments-upload:first :input, .attachments-upload:first li").remove();
+
+		$(".conv-action").addClass('inactive');
+		$(this).removeClass('inactive');
+		//$('#body').summernote("code", '');
+		$('#body').summernote('focus');
+
+		maybeScrollToReplyBlock();
+	}
 }
 
 // Prepare reply/forward form for display
@@ -1546,6 +1576,7 @@ function convEditorInit()
 	options = fsApplyFilter('editor.options', options);
 
 	$('#body').summernote(options);
+	fsFixEditorCodeSaving($('#body'));
 	$('#editor_bottom_toolbar a[data-modal-applied="1"]').removeAttr('data-modal-applied');
 	var html = $('#editor_bottom_toolbar').html();
 	$('.note-statusbar').addClass('note-statusbar-toolbar form-inline').html(html);
@@ -1610,6 +1641,8 @@ function onReplyChange()
 // Save reply draft or note on form focus out
 function onReplyBlur()
 {
+	$('#body').summernote('editor.saveRange');
+
 	// If start saving draft immediately, then when Send Reply is clicked
 	// two ajax requests will be sent at the same time.
 	setTimeout(function() {
@@ -2353,7 +2386,7 @@ function initMailboxToolbar()
 {
 	$(document).ready(function() {
 		// Empty trash
-		$(".mailbox-empty-trash").click(function(e) {
+		$(".mailbox-empty-folder").click(function(e) {
 			showModalDialog('#conversations-bulk-actions-delete-modal', {
 				on_show: function(modal) {
 					modal.children().find('.delete-conversation-ok:first').click(function(e) {
@@ -2362,7 +2395,7 @@ function initMailboxToolbar()
 
 						fsAjax(
 							{
-								action: 'empty_trash',
+								action: 'empty_folder',
 								folder_id: getGlobalAttr('folder_id')
 							},
 							laroute.route('conversations.ajax'),
@@ -4086,6 +4119,30 @@ function editThread(button)
 	);
 }
 
+// Delete thread (note)
+function deleteThread(button)
+{
+	var thread_container = button.parents('.thread:first');
+	
+	button.button('loading');
+
+	fsAjax({
+			action: 'delete_thread',
+			thread_id: thread_container.attr('data-thread_id')
+		},
+		laroute.route('conversations.ajax'),
+		function(response) {
+			loaderHide();
+			button.button('reset');
+			if (isAjaxSuccess(response)) {
+				thread_container.remove();
+			} else {
+				showAjaxError(response);
+			}
+		}
+	);
+}
+
 // Cancel thread editing
 function cancelThreadEdit(trigger, thread_container)
 {
@@ -4474,7 +4531,7 @@ function maybeShowStoredNote()
 			conversation_notes[conversation_id].note.trim()
 		) {
 			setReplyBody(conversation_notes[conversation_id].note);
-			switchToNote();
+			showNoteForm();
 		}
 	}
 }

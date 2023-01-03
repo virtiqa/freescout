@@ -389,7 +389,6 @@ class FetchEmails extends Command
                 $is_bounce = true;
             }
 
-
             if ($is_bounce && !$bounced_message_id) {
                 foreach ($attachments as $attachment_msg) {
                     // 7.3.1 The Message/rfc822 (primary) subtype. A Content-Type of "message/rfc822" indicates that the body contains an encapsulated message, with the syntax of an RFC 822 message
@@ -428,16 +427,35 @@ class FetchEmails extends Command
                         $prev_thread_id = '';
 
                         // Customer replied to the email from user
-                        preg_match('/^'.\MailHelper::MESSAGE_ID_PREFIX_REPLY_TO_CUSTOMER."\-(\d+)\-/", $prev_message_id, $m);
-                        if (!empty($m[1])) {
-                            $prev_thread_id = $m[1];
+                        preg_match('/^'.\MailHelper::MESSAGE_ID_PREFIX_REPLY_TO_CUSTOMER."\-(\d+)\-([^@]+)@/", $prev_message_id, $m);
+                        // Simply checking thread_id from message_id was causing an issue when 
+                        // customer was sending a message from FreeScout - the message was 
+                        // connected to the wrong conversation.
+                        if (!empty($m[1]) && !empty($m[2])) {
+                            $message_id_hash = $m[2];
+                            if (strlen($message_id_hash) == 16) {
+                                if ($message_id_hash == \MailHelper::getMessageIdHash($m[1])) {
+                                    $prev_thread_id = $m[1];
+                                }
+                            } else {
+                                // Backward compatibility.
+                                $prev_thread_id = $m[1];
+                            }
                         }
 
                         // Customer replied to the auto reply
                         if (!$prev_thread_id) {
-                            preg_match('/^'.\MailHelper::MESSAGE_ID_PREFIX_AUTO_REPLY."\-(\d+)\-/", $prev_message_id, $m);
-                            if (!empty($m[1])) {
-                                $prev_thread_id = $m[1];
+                            preg_match('/^'.\MailHelper::MESSAGE_ID_PREFIX_AUTO_REPLY."\-(\d+)\-([^@]+)@/", $prev_message_id, $m);
+                            if (!empty($m[1]) && !empty($m[2])) {
+                                $message_id_hash = $m[2];
+                                if (strlen($message_id_hash) == 16) {
+                                    if ($message_id_hash == \MailHelper::getMessageIdHash($m[1])) {
+                                        $prev_thread_id = $m[1];
+                                    }
+                                } else {
+                                    // Backward compatibility.
+                                    $prev_thread_id = $m[1];
+                                }
                             }
                         }
 
@@ -497,6 +515,33 @@ class FetchEmails extends Command
             // Convert subject encoding
             if (preg_match('/=\?[a-z\d-]+\?[BQ]\?.*\?=/i', $subject)) {
                 $subject = iconv_mime_decode($subject, ICONV_MIME_DECODE_CONTINUE_ON_ERROR, 'UTF-8');
+            }
+
+            // If existing user forwarded customer's email to the mailbox
+            // we are creating a new conversation as if it was sent by the customer.
+            if ($in_reply_to
+                // We should re-retrive body, as body may contain changed HTML.
+                && ($fwd_body = $html_body ?: $message->getTextBody())
+                //&& preg_match("/^(".implode('|', \MailHelper::$fwd_prefixes)."):(.*)/i", $subject, $m) 
+                // F:, FW:, FWD:, WG:, De:
+                && preg_match("/^[[:alpha:]]{1,3}:(.*)/i", $subject, $m) 
+                && !empty($m[1])
+                && !$user_id && !$is_reply && !$prev_thread
+            ) {
+                // Try to get "From:" from body.
+                $original_sender = $this->getOriginalSenderFromFwd($fwd_body);
+                
+                if ($original_sender) {
+                    // Check if sender is the existing user.
+                    $sender_is_user = User::nonDeleted()->where('email', $from)->exists();
+                    
+                    if ($sender_is_user) {
+                        // Substitute sender.
+                        $from = $original_sender;
+                        $subject = trim($m[1]);
+                        $message_from_customer = true;
+                    }
+                }
             }
 
             $to = $this->formatEmailList($message->getTo());
@@ -615,6 +660,13 @@ class FetchEmails extends Command
             $this->setSeen($message, $mailbox);
             $this->logError(\Helper::formatException($e));
         }
+    }
+
+    // Try to get "From:" from body.
+    public function getOriginalSenderFromFwd($body)
+    {
+        preg_match("/[\"'<:]([^\"'<:]+@[^\"'>:]+)[\"'>:]/", $body, $b);
+        return Email::sanitizeEmail($b[1] ?? '');
     }
 
     public function saveBounceData($new_thread, $bounced_message_id, $from)
@@ -969,7 +1021,9 @@ class FetchEmails extends Command
                 // One body.
                 $dom = new \DOMDocument();
                 libxml_use_internal_errors(true);
-                $dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
+                //$dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
+                //$dom->loadHTML(\Helper::mbConvertEncodingHtmlEntities($html));
+                $dom->loadHTML(\Symfony\Polyfill\Mbstring\Mbstring::mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
                 libxml_use_internal_errors(false);
                 $bodies = $dom->getElementsByTagName('body');
                 if ($bodies->length == 1) {
@@ -985,7 +1039,7 @@ class FetchEmails extends Command
                 $result = $body;
             }
         } else {
-            $result = nl2br($body);
+            $result = nl2br($body ?? '');
         }
 
         // This is reply, we need to separate reply text from old text

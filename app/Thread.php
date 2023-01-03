@@ -56,6 +56,7 @@ class Thread extends Model
         //self::TYPE_FORWARDPARENT => 'forwardparent',
         // forwardchild is the type set on the first thread of the new forwarded conversation.
         //self::TYPE_FORWARDCHILD => 'forwardchild',
+        // Not used.
         self::TYPE_CHAT         => 'chat',
     ];
 
@@ -614,11 +615,14 @@ class Thread extends Model
                 if ($conversation_number) {
                     $did_this = __(':person changed the customer to :customer in conversation #:conversation_number', ['customer' => $this->customer->getFullName(true), 'conversation_number' => $conversation_number]);
                 } else {
-                    $customer_name = $this->customer_cached->getFullName(true);
+                    $customer_name = '';
+                    if ($this->customer_cached) {
+                        $customer_name = $this->customer_cached->getFullName(true);
+                    }
                     if ($escape) {
                         $customer_name = htmlspecialchars($customer_name);
                     }
-                    $did_this = __(":person changed the customer to :customer", ['customer' => '<a href="'.$this->customer_cached->url().'" title="'.$this->action_data.'" class="link-black">'.$customer_name.'</a>']);
+                    $did_this = __(":person changed the customer to :customer", ['customer' => '<a href="'.($this->customer_cached ? $this->customer_cached->url() : '').'" title="'.$this->action_data.'" class="link-black">'.$customer_name.'</a>']);
                 }
             } elseif ($this->action_type == self::ACTION_TYPE_DELETED_TICKET) {
                 $did_this = __(":person deleted");
@@ -747,7 +751,11 @@ class Thread extends Model
     {
         // Created by customer
         if ($this->source_via == self::PERSON_CUSTOMER) {
-            return $this->getCreatedBy()->getFirstName(true);
+            if ($this->getCreatedBy()) {
+                return $this->getCreatedBy()->getFirstName(true);
+            } else {
+                return '';
+            }
         }
 
         // Created by user
@@ -1046,6 +1054,10 @@ class Thread extends Model
                 $thread->has_attachments = true;
                 $conversation->has_attachments = true;
             }
+        } else {
+            $has_attachments = $data['has_attachments'] ?? false;
+            $thread->has_attachments = $has_attachments;
+            $conversation->has_attachments = $has_attachments;
         }
         
         $thread->save();
@@ -1355,5 +1367,15 @@ class Thread extends Model
         $action_types = \Eventy::filter('thread.action_types', self::$action_types);
 
         return self::$action_types[$this->action_type] ?? '';
+    }
+
+    public function isCustomerMessage()
+    {
+        return $this->type == self::TYPE_CUSTOMER;
+    }
+
+    public function isUserMessage()
+    {
+        return $this->type == self::TYPE_MESSAGE;
     }
 }

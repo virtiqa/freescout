@@ -2335,9 +2335,6 @@ button.conv-checkbox-clear {
     color: #93a1af;
     text-decoration: none;
     cursor: default;
- }
-.thread-attachments span {
-    text-transform: lowercase;
 }
 .thread-editor-container {
     padding: 20px;
@@ -3703,6 +3700,9 @@ body.print {
 .padding-left-0 {
     padding-left: 0 !important;
 }
+.padding-right-0 {
+    padding-right: 0 !important;
+}
 .heading {
     color: #253540;
     font-size: 20px;
@@ -4387,6 +4387,11 @@ a.disabled:focus {
 @media (max-width:991px) {
     .col1-hidden {
         display: none;
+    }
+}
+@media (min-width:992px) {
+    .sidebar-2col {
+        overflow-y: auto;
     }
 }
 /**
