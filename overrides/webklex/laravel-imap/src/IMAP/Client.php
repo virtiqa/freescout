@@ -213,6 +213,8 @@ class Client {
     public function connect($attempts = 3) {
         $this->disconnect();
 
+        // var_dump($this);
+
         try {
             $this->connection = imap_open(
                 $this->getAddress(),

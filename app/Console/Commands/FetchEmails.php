@@ -87,6 +87,8 @@ class FetchEmails extends Command
             $this->mailboxes = Mailbox::whereIn('in_protocol', array_keys(Mailbox::$in_protocols))->get();
         }
 
+        // var_dump($this->mailboxes);
+
         foreach ($this->mailboxes as $mailbox) {
             if (!$mailbox->isInActive()) {
                 continue;
@@ -131,7 +133,11 @@ class FetchEmails extends Command
     {
         $no_charset = false;
 
+        // var_dump($mailbox);
+
         $client = \MailHelper::getMailboxClient($mailbox);
+
+        // var_dump($client);
 
         // Connect to the Server
         $client->connect();
@@ -162,6 +168,9 @@ class FetchEmails extends Command
         // }
 
         $unseen = \Eventy::filter('fetch_emails.unseen', $this->option('unseen'), $mailbox);
+        
+        // var_dump($unseen);
+
         if ($unseen != $this->option('unseen')) {
             $this->line('['.date('Y-m-d H:i:s').'] Fetching: '.($unseen ? 'UNREAD' : 'ALL'));
         }
