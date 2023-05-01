@@ -11,6 +11,7 @@
     ],
     "require": {
         "php": ">=7.1.0",
+
         "symfony/debug": "v3.4.18",
         "devfactory/minify": "1.0.7",
         "fideloper/proxy": "3.3.4",
@@ -44,6 +45,7 @@
         "fzaninotto/faker": "v1.9.2",
         "mockery/mockery": "1.1.0",
         "phpunit/phpunit": "6.5.8",
+
         "symfony/polyfill-ctype": "v1.10.*",
         "vlucas/phpdotenv": "v2.5.1",
         "symfony/css-selector": "v3.4.18",
@@ -77,7 +79,8 @@
     "autoload": {
         "classmap": [
             "database/seeds",
-            "database/factories"
+            "database/factories",
+            "overrides/natxet/cssmin/src/"
         ],
         "psr-0": {
             "Swift_": "overrides/swiftmailer/swiftmailer/lib/classes",
@@ -89,10 +92,12 @@
             "Modules\\": "Modules/",
             "Axn\\Laroute\\Routes\\": "overrides/axn/laravel-laroute/src/Routes/",
             "Webklex\\IMAP\\": "overrides/webklex/laravel-imap/src/IMAP/",
+            "Webklex\\PHPIMAP\\": "overrides/webklex/php-imap/src/",
             "RachidLaasri\\LaravelInstaller\\Helpers\\": "overrides/rachidlaasri/laravel-installer/src/Helpers/",
             "RachidLaasri\\LaravelInstaller\\Middleware\\": "overrides/rachidlaasri/laravel-installer/src/Middleware/",
             "RachidLaasri\\LaravelInstaller\\Controllers\\": "overrides/rachidlaasri/laravel-installer/src/Controllers/",
             "RachidLaasri\\LaravelInstaller\\Providers\\": "overrides/rachidlaasri/laravel-installer/src/Providers/",
+            "RachidLaasri\\LaravelInstaller\\Events\\": "overrides/rachidlaasri/laravel-installer/src/Events/",
             "Nwidart\\Modules\\": "overrides/nwidart/laravel-modules/src/",
             "Codedge\\Updater\\SourceRepositoryTypes\\": "overrides/codedge/laravel-selfupdater/src/SourceRepositoryTypes/",
             "Barryvdh\\TranslationManager\\": "overrides/barryvdh/laravel-translation-manager/src/",
@@ -104,6 +109,7 @@
             "Illuminate\\Auth\\": "overrides/laravel/framework/src/Illuminate/Auth/",
             "Illuminate\\Auth\\Middleware\\": "overrides/laravel/framework/src/Illuminate/Auth/Middleware/",
             "Illuminate\\Container\\": "overrides/laravel/framework/src/Illuminate/Container/",
+            "Illuminate\\Filesystem\\": "overrides/laravel/framework/src/Illuminate/Filesystem/",
             "Lord\\Laroute\\Routes\\": "overrides/lord/laroute/src/Routes/",
             "TorMorten\\Eventy\\": "overrides/tormjens/eventy/src/",
             "Symfony\\Component\\Debug\\": "overrides/symfony/debug/",
@@ -117,6 +123,7 @@
             "Illuminate\\Session\\": "overrides/laravel/framework/src/Illuminate/Session/",
             "Carbon\\": "overrides/nesbot/carbon/src/Carbon/",
             "Illuminate\\Cache\\": "overrides/laravel/framework/src/Illuminate/Cache/",
+            "Illuminate\\Config\\": "overrides/laravel/framework/src/Illuminate/Config/",
             "Doctrine\\DBAL\\Driver\\": "overrides/doctrine/dbal/lib/Doctrine/DBAL/Driver/",
             "Doctrine\\DBAL\\Schema\\": "overrides/doctrine/dbal/lib/Doctrine/DBAL/Schema/",
             "Symfony\\Component\\Finder\\Iterator\\": "overrides/symfony/finder/Iterator/",
@@ -158,6 +165,7 @@
             "vendor/rachidlaasri/laravel-installer/src/Middleware/canInstall.php",
             "vendor/rachidlaasri/laravel-installer/src/Controllers/EnvironmentController.php",
             "vendor/rachidlaasri/laravel-installer/src/Controllers/FinalController.php",
+            "vendor/rachidlaasri/laravel-installer/src/Events/EnvironmentSaved.php",
             "vendor/nwidart/laravel-modules/src/Module.php",
             "vendor/nwidart/laravel-modules/src/Repository.php",
             "vendor/nwidart/laravel-modules/src/Json.php",
@@ -203,6 +211,7 @@
             "vendor/laravel/framework/src/Illuminate/Session/FileSessionHandler.php",
             "vendor/nesbot/carbon/src/Carbon/Carbon.php",
             "vendor/laravel/framework/src/Illuminate/Cache/Repository.php",
+            "vendor/laravel/framework/src/Illuminate/Config/Repository.php",
             "vendor/doctrine/dbal/lib/Doctrine/DBAL/Driver/PDOConnection.php",
             "vendor/doctrine/dbal/lib/Doctrine/DBAL/Driver/PDOQueryImplementation.php",
             "vendor/doctrine/dbal/lib/Doctrine/DBAL/Driver/PDOStatement.php",
@@ -243,16 +252,26 @@
             "vendor/spatie/string/src/Str.php",
             "vendor/guzzlehttp/guzzle/src/Client.php",
             "vendor/guzzlehttp/guzzle/src/Cookie/CookieJar.php",
-            "vendor/guzzlehttp/guzzle/src/psr7/src/LazyOpenStream.php",
+            "vendor/guzzlehttp/psr7/src/LazyOpenStream.php",
             "vendor/ramsey/uuid/src/Uuid.php",
             "vendor/laravel/framework/src/Illuminate/Routing/Router.php",
+            "vendor/laravel/framework/src/Illuminate/Filesystem/Filesystem.php",
             "vendor/rap2hpoutre/laravel-log-viewer/src/Rap2hpoutre/LaravelLogViewer/LaravelLogViewer.php",
             "vendor/symfony/console/Descriptor/TextDescriptor.php",
             "vendor/symfony/console/Helper/Helper.php",
             "vendor/symfony/finder/Iterator/SortableIterator.php",
             "vendor/symfony/css-selector/XPath/Extension/NodeExtension.php",
             "vendor/ezyang/htmlpurifier/library/HTMLPurifier/AttrTransform/NameSync.php",
-            "vendor/javoscript/laravel-macroable-models/src/MacroableModels.php"
+            "vendor/ezyang/htmlpurifier/library/HTMLPurifier/AttrValidator.php",
+            "vendor/ezyang/htmlpurifier/library/HTMLPurifier/ChildDef/List.php",
+            "vendor/javoscript/laravel-macroable-models/src/MacroableModels.php",
+            "vendor/swiftmailer/swiftmailer/lib/classes/Swift/EmbeddedFile.php",
+            "vendor/swiftmailer/swiftmailer/lib/classes/Swift/Transport/StreamBuffer.php",
+            "vendor/natxet/cssmin/src/CssMin.php",
+            "vendor/webklex/php-imap/src/Header.php",
+            "vendor/webklex/php-imap/src/Structure.php",
+            "vendor/webklex/php-imap/src/Message.php",
+            "vendor/webklex/php-imap/src/Connection/Protocols/ImapProtocol.php"
         ]
     },
     "autoload-dev": {
@@ -273,9 +292,14 @@
         "post-create-project-cmd": [
             "@php artisan key:generate"
         ],
+        "pre-install-cmd": [
+            "@php -r \"@mkdir('vendor/natxet/cssmin/src', 775);\""
+        ],
         "post-autoload-dump": [
             "@php -r \"file_put_contents('vendor/composer/ClassLoader.php', preg_replace('/function includeFile.*/s', base64_decode('DQpmdW5jdGlvbiBpbmNsdWRlRmlsZSgkZmlsZSkNCnsNCiAgICB0cnkgew0KICAgICAgICBpbmNsdWRlICRmaWxlOw0KICAgIH0gY2F0Y2ggKFxFeGNlcHRpb24gJGUpIHsNCiAgICAgICAgJG1zZyA9ICRlLT5nZXRNZXNzYWdlKCk7DQogICAgICAgIGlmIChzdHJzdHIoJG1zZywgJ05vIHN1Y2ggZmlsZSBvciBkaXJlY3RvcnknKSkgew0KICAgICAgICAgICAgaWYgKHN0cnN0cigkbXNnLCAnL3ZlbmRvci9jb21wb3Nlci8uLi8uLi9vdmVycmlkZXMvJykpIHsNCiAgICAgICAgICAgICAgICAkbmV3X2ZpbGUgPSBzdHJfcmVwbGFjZSgnL3ZlbmRvci9jb21wb3Nlci8uLi8uLi9vdmVycmlkZXMvJywgJy92ZW5kb3IvY29tcG9zZXIvLi4vJywgJGZpbGUpOw0KICAgICAgICAgICAgfSBlbHNlIHsNCiAgICAgICAgICAgICAgICAkbmV3X2ZpbGUgPSBzdHJfcmVwbGFjZSgnL3ZlbmRvci9jb21wb3Nlci8uLi8nLCAnL3ZlbmRvci9jb21wb3Nlci8uLi8uLi9vdmVycmlkZXMvJywgJGZpbGUpOw0KICAgICAgICAgICAgfQ0KICAgICAgICAgICAgaW5jbHVkZSAkbmV3X2ZpbGU7DQogICAgICAgIH0gZWxzZSB7DQogICAgICAgICAgICB0aHJvdyAkZTsNCiAgICAgICAgfQ0KICAgIH0NCn0='), file_get_contents('vendor/composer/ClassLoader.php')));\"",
             "@php -r \"!error_reporting(0) || array_map('unlink', json_decode(file_get_contents('composer.json'), true)['autoload']['exclude-from-classmap']);\"",
+            "@php -r \"file_put_contents('vendor/webklex/php-imap/src/config/imap.php', preg_replace('/, \\\\'inline\\\\'],/s', '/*, \\\\'inline\\\\'*/],', file_get_contents('vendor/webklex/php-imap/src/config/imap.php')));\"",
+            "@php -r \"copy('vendor/nesbot/carbon/src/Carbon/Lang/pt.php', 'vendor/nesbot/carbon/src/Carbon/Lang/pt_PT.php');\"",
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover"
         ]
