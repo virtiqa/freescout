@@ -23,8 +23,8 @@
             <div id="conv-toolbar">
 
                 <div class="conv-actions">
-                    {{-- There should be no spaced between buttons --}}
-                    @if (!$conversation->isPhone())
+                    {{-- There should be no spaces between buttons --}}
+                    @if (!$conversation->isPhone() || ($customer && $customer->getMainEmail()))
                         <span class="conv-reply conv-action glyphicon glyphicon-share-alt" data-toggle="tooltip" data-placement="bottom" title="{{ __("Reply") }}" aria-label="{{ __("Reply") }}" role="button"></span>
                     @endif
                     <span class="conv-add-note conv-action glyphicon glyphicon-edit" data-toggle="tooltip" data-placement="bottom" title="{{ __("Note") }}" aria-label="{{ __("Note") }}" role="button"></span>
@@ -164,6 +164,20 @@
                                 <input type="hidden" name="is_note" value=""/>
                                 <input type="hidden" name="subtype" value=""/>
                                 <input type="hidden" name="conv_history" value=""/>
+
+                                @if (count($from_aliases))
+                                    <div class="form-group conv-from-alias">
+                                        <label class="control-label">{{ __('From') }}</label>
+
+                                        <div class="conv-reply-field">
+                                            <select name="from_alias" class="form-control">
+                                                @foreach ($from_aliases as $from_alias_email => $from_alias_name)
+                                                    <option value="@if ($from_alias_email != $mailbox->email){{ $from_alias_email }}@endif" @if (!empty($from_alias) && $from_alias == $from_alias_email)selected="selected"@endif>@if ($from_alias_name){{ $from_alias_email }} ({{ $from_alias_name }})@else{{ $from_alias_email }}@endif</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    </div>
+                                @endif
 
                                 <div class="form-group{{ $errors->has('to') ? ' has-error' : '' }} conv-recipient conv-recipient-to @if (empty($to_customers)) hidden @endif">
                                     <label for="to" class="control-label">{{ __('To') }}</label>

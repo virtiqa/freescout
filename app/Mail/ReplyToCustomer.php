@@ -39,6 +39,11 @@ class ReplyToCustomer extends Mailable
     public $mailbox;
 
     /**
+     * Subject.
+     */
+    public $subject;
+
+    /**
      * Number of threads.
      */
     public $threads_count;
@@ -48,12 +53,13 @@ class ReplyToCustomer extends Mailable
      *
      * @return void
      */
-    public function __construct($conversation, $threads, $headers, $mailbox, $threads_count = 1)
+    public function __construct($conversation, $threads, $headers, $mailbox, $subject, $threads_count = 1)
     {
         $this->conversation = $conversation;
         $this->threads = $threads;
         $this->headers = $headers;
         $this->mailbox = $mailbox;
+        $this->subject = $subject;
         $this->threads_count = $threads_count;
     }
 
@@ -64,18 +70,49 @@ class ReplyToCustomer extends Mailable
      */
     public function build()
     {
+        \MailHelper::prepareMailable($this);
+
+        $thread = $this->threads->first();
+        $from_alias = trim($thread->from ?? '');
+
         // Set Message-ID
         // Settings via $this->addCustomHeaders does not work
         $new_headers = $this->headers;
-        if (!empty($new_headers)) {
-            $this->withSwiftMessage(function ($swiftmessage) use ($new_headers) {
-                if (!empty($new_headers['Message-ID'])) {
-                    $swiftmessage->setId($new_headers['Message-ID']);
+        if (!empty($new_headers) || $from_alias) {
+            $mailbox = $this->mailbox;
+            $this->withSwiftMessage(function ($swiftmessage) use ($new_headers, $from_alias, $mailbox) {
+                if (!empty($new_headers)) {
+                    if (!empty($new_headers['Message-ID'])) {
+                        $swiftmessage->setId($new_headers['Message-ID']);
+                    }
+                    $headers = $swiftmessage->getHeaders();
+                    foreach ($new_headers as $header => $value) {
+                        if ($header != 'Message-ID') {
+                            $headers->addTextHeader($header, $value);
+                        }
+                    }
                 }
-                $headers = $swiftmessage->getHeaders();
-                foreach ($new_headers as $header => $value) {
-                    if ($header != 'Message-ID') {
-                        $headers->addTextHeader($header, $value);
+                if (!empty($from_alias)) {
+                    $aliases = $mailbox->getAliases();
+
+                    // Make sure that the From contains a mailbox alias,
+                    // as user thread may have From specified when a user
+                    // replies to an email notification.
+                    if (array_key_exists($from_alias, $aliases)) {
+
+                        $from_alias_name = $aliases[$from_alias] ?? '';
+
+                        $swift_from = $headers->get('From');
+
+                        if ($from_alias_name) {
+                            $swift_from->setNameAddresses([
+                                $from_alias => $from_alias_name
+                            ]);
+                        } else {
+                            $swift_from->setAddresses([
+                                $from_alias
+                            ]);
+                        }
                     }
                 }
 
@@ -83,19 +120,14 @@ class ReplyToCustomer extends Mailable
             });
         }
 
-        $subject = $this->conversation->subject;
-        if ($this->threads_count > 1) {
-            $subject = 'Re: '.$subject;
-        }
-        $subject = \Eventy::filter('email.reply_to_customer.subject', $subject, $this->conversation);
-
         // from($this->from) Sets only email, name stays empty.
         // So we set from in Mail::setMailDriver
-        $message = $this->subject($subject)
+        $message = $this->subject($this->subject)
                     ->view('emails/customer/reply_fancy')
                     ->text('emails/customer/reply_fancy_text');
 
-        $thread = $this->threads->first();
+         // commented out in merge
+        // $thread = $this->threads->first();
 
         if ($thread->has_attachments) {
             foreach ($thread->attachments as $attachment) {

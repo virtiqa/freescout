@@ -87,6 +87,7 @@ class MailboxesController extends Controller
 
         $mailbox = new Mailbox();
         $mailbox->fill($request->all());
+
         $mailbox->save();
 
         $mailbox->users()->sync($request->users);
@@ -108,7 +109,12 @@ class MailboxesController extends Controller
             $accessible_route = '';
 
             $mailbox_settings = $user->mailboxSettings($mailbox->id);
-            $access_permissions = json_decode($mailbox_settings->access ?? '');
+            
+            if (!is_array($mailbox_settings->access)) {
+                $access_permissions = json_decode($mailbox_settings->access ?? '');
+            } else {
+                $access_permissions = $mailbox_settings->access;
+            }
 
             if ($access_permissions && is_array($access_permissions)) {
                 foreach ($access_permissions as $perm) {
@@ -258,7 +264,7 @@ class MailboxesController extends Controller
 
         $user = auth()->user();
 
-        $mailbox->users()->sync($request->users);
+        $mailbox->users()->sync(\Eventy::filter('mailbox.permission_users', $request->users, $id));
         $mailbox->syncPersonalFolders($request->users);
 
         // Save admins settings.
@@ -280,7 +286,7 @@ class MailboxesController extends Controller
             $access = [];
             $mailbox_with_settings = $mailbox_user->mailboxesWithSettings()->where('mailbox_id', $id)->first();
 
-            foreach (\App\Mailbox::$access_permissions as $perm) {
+            foreach (Mailbox::$access_permissions as $perm) {
                 if (!empty($request->managers[$mailbox_user->id]['access'][$perm])) {
                     $access[] = $request->managers[$mailbox_user->id]['access'][$perm];
                 }
@@ -349,7 +355,7 @@ class MailboxesController extends Controller
         }
 
         // Sometimes background job continues to use old connection settings.
-        \Helper::queueWorkRestart();
+        \Helper::queueWorkerRestart();
 
         \Session::flash('flash_success_floating', __('Connection settings saved!'));
 
@@ -705,8 +711,13 @@ class MailboxesController extends Controller
                                 // Maybe we need a recursion here.
                                 if (!empty($imap_folder->children)) {
                                     foreach ($imap_folder->children as $child_imap_folder) {
+                                        // Old library.
                                         if (!empty($child_imap_folder->fullName)) {
                                             $response['folders'][] = $child_imap_folder->fullName;
+                                        }
+                                        // New library.
+                                        if (!empty($child_imap_folder->full_name)) {
+                                            $response['folders'][] = $child_imap_folder->full_name;
                                         }
                                     }
                                 }
@@ -737,7 +748,7 @@ class MailboxesController extends Controller
                     $response['msg'] = __('Mailbox not found');
                 } elseif (!$user->can('admin', $mailbox)) {
                     $response['msg'] = __('Not enough permissions');
-                } elseif (!Hash::check($request->password, $user->password)) {
+                } elseif (!$user->isDummyPassword() && !Hash::check($request->password ?? '', $user->password)) {
                     $response['msg'] = __('Please double check your password, and try again');
                 }
 
@@ -793,7 +804,7 @@ class MailboxesController extends Controller
         }
 
         if ($response['status'] == 'error' && empty($response['msg'])) {
-            $response['msg'] = 'Unknown error occured';
+            $response['msg'] = 'Unknown error occurred';
         }
 
         return \Response::json($response);

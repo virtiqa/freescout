@@ -60,7 +60,7 @@ class Attachment extends Model
         $orig_extension = pathinfo($file_name, PATHINFO_EXTENSION);
 
         // Add underscore to the extension if file has restricted extension.
-        $file_name = \Helper::sanitizeUploadedFileName($file_name);
+        $file_name = \Helper::sanitizeUploadedFileName($file_name, $uploaded_file, $content);
 
         // Replace some symbols in file name.
         // Gmail can not load image if it contains spaces.
@@ -141,6 +141,8 @@ class Attachment extends Model
             Storage::disk(self::DISK)->put($file_path, $content);
         }
 
+        \Helper::sanitizeUploadedFileData($file_path, \Helper::getPrivateStorage(), $content);
+
         return [
             'file_dir'  => $file_dir,
             'file_path' => $file_path,
@@ -213,7 +215,7 @@ class Attachment extends Model
     }
 
     /**
-     * Conver type name to integer.
+     * Convert type name to integer.
      */
     public static function typeNameToInt($type_name)
     {
@@ -392,10 +394,12 @@ class Attachment extends Model
     /**
      * Create a copy of the attachment and it's file.
      */
-    public function duplicate($thread_id)
+    public function duplicate($thread_id = null)
     {
         $new_attachment = $this->replicate();
-        $new_attachment->thread_id = $thread_id;
+        if ($thread_id) {
+            $new_attachment->thread_id = $thread_id;
+        }
 
         $new_attachment->save();
 

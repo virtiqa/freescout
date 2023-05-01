@@ -58,7 +58,7 @@
                                 <div class="flexy">
                                     <input id="aliases" type="text" class="form-control input-sized" name="aliases" value="{{ old('aliases', $mailbox->aliases) }}" maxlength="255">
 
-                                    <i class="glyphicon glyphicon-info-sign icon-info" data-toggle="popover" data-trigger="hover" data-html="true" data-placement="left"  data-content="{{ __('Aliases are other email addresses that also forward to your mailbox address. Separate each email with a comma.') }}"></i>
+                                    <i class="glyphicon glyphicon-info-sign icon-info" data-toggle="popover" data-trigger="hover" data-html="true" data-placement="left"  data-content="{{ __('Aliases are other email addresses that also forward to your mailbox address. Separate each email with a comma.') }}&lt;br&gt;&lt;br&gt;alias1@example.org, alias2@example.org({{ __('Mailbox Name') }}), alias3@exampl.org"></i>
                                 </div>
 
                                 @include('partials/field_error', ['field'=>'aliases'])
@@ -205,12 +205,15 @@
 
     <div id="delete_mailbox_modal" class="hidden">
         <div class="text-large">{{ __('Deleting this mailbox will remove all historical data and deactivate related workflows and reports.') }}</div>
-        <div class="text-large margin-top margin-bottom-5">{{ __('Please confirm your password:') }}</div>
-        <div class="row">
-            <div class="col-xs-7">
-                <input type="password" class="form-control delete-mailbox-pass" />
+
+        @if (!Auth::user()->isDummyPassword())
+            <div class="text-large margin-top margin-bottom-5">{{ __('Please confirm your password:') }}</div>
+            <div class="row">
+                <div class="col-xs-7">
+                    <input type="password" class="form-control delete-mailbox-pass" />
+                </div>
             </div>
-        </div>
+        @endif
         <div class="margin-top margin-bottom-5">
             <button class="btn btn-danger button-delete-mailbox" data-loading-text="{{ __('Processing') }}…">{{ __('Delete Mailbox') }}</button>
             <button class="btn btn-link" data-dismiss="modal">{{ __('Cancel') }}</button>

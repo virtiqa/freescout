@@ -104,6 +104,14 @@
                     @if ($thread->type != App\Thread::TYPE_NOTE || $thread->isForward())
                         <div class="thread-recipients">
                             @action('thread.before_recipients', $thread, $loop, $threads, $conversation, $mailbox)
+                            @if ($thread->isUserMessage() && $thread->from && array_key_exists($thread->from, $mailbox->getAliases()))
+                                <div>
+                                    <strong>
+                                        {{ __("From") }}:
+                                    </strong>
+                                    {{ $thread->from }}
+                                </div>
+                            @endif
                             @if (($thread->isForward()
                                 || $loop->last
                                 || ($thread->type == App\Thread::TYPE_CUSTOMER && count($thread->getToArray($mailbox->getEmails())))
@@ -140,6 +148,7 @@
                     @endif
                 </div>
                 <div class="thread-info">
+                    @action('thread.info.prepend', $thread)
                     @if ($thread->type == App\Thread::TYPE_NOTE)
                         {{--<span class="thread-type">{{ __('Note') }} <span>·</span> </span>--}}
                     @else

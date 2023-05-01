@@ -30,29 +30,11 @@ class SystemController extends Controller
      */
     public function status(Request $request)
     {
-        // PHP extensions
-        $php_extensions = [];
-        foreach (\Config::get('app.required_extensions') as $extension_name) {
-            $alternatives = explode('/', $extension_name);
-            if ($alternatives) {
-                foreach ($alternatives as $alternative) {
-                    $php_extensions[$extension_name] = extension_loaded(trim($alternative));
-                    if ($php_extensions[$extension_name]) {
-                        break;
-                    }
-                }
-            } else {
-                $php_extensions[$extension_name] = extension_loaded($extension_name);
-            }
-        }
+        // PHP extensions.
+        $php_extensions = \Helper::checkRequiredExtensions();
 
         // Functions.
-        $functions = [
-            'shell_exec (PHP)' => function_exists('shell_exec'),
-            'proc_open (PHP)' => function_exists('proc_open'),
-            'fpassthru (PHP)' => function_exists('fpassthru'),
-            'ps (shell)' => function_exists('shell_exec') ? shell_exec('ps') : false,
-        ];
+        $functions = \Helper::checkRequiredFunctions();
 
         // Permissions.
         $permissions = [];
@@ -116,7 +98,13 @@ class SystemController extends Controller
                     $processes = preg_split("/[\r\n]/", shell_exec("ps aux | grep '{$command_identifier}'"));
                     $pids = [];
                     foreach ($processes as $process) {
+                        $process = trim($process);
                         preg_match("/^[\S]+\s+([\d]+)\s+/", $process, $m);
+                        if (empty($m)) {
+                            // Another format (used in Docker image).
+                            // 1713 nginx     0:00 /usr/bin/php82...
+                            preg_match("/^([\d]+)\s+[\S]+\s+/", $process, $m);
+                        }
                         if (!preg_match("/(sh \-c|grep )/", $process) && !empty($m[1])) {
                             $running_commands++;
                             $pids[] = $m[1];
@@ -135,7 +123,7 @@ class SystemController extends Controller
                 } elseif ($running_commands > 1) {
                     // queue:work command is stopped by settings a cache key
                     if ($command_name == 'queue:work') {
-                        \Helper::queueWorkRestart();
+                        \Helper::queueWorkerRestart();
                         $commands[] = [
                             'name'        => $command_name,
                             'status'      => 'error',
@@ -235,6 +223,12 @@ class SystemController extends Controller
                 \Session::flash('flash_success_floating', __('Done'));
                 break;
 
+            case 'retry_job':
+                \App\Job::where('id', $request->job_id)->update(['available_at' => time()]);
+                sleep(1);
+                \Session::flash('flash_success_floating', __('Done'));
+                break;
+
             case 'delete_failed_jobs':
                 \App\FailedJob::where('queue', $request->failed_queue)->delete();
                 \Session::flash('flash_success_floating', __('Failed jobs deleted'));
@@ -328,7 +322,7 @@ class SystemController extends Controller
 
                     // Artisan::output()
                 } catch (\Exception $e) {
-                    $response['msg'] = __('Error occured. Please try again or try another :%a_start%update method:%a_end%', ['%a_start%' => '<a href="'.config('app.freescout_url').'/docs/update/" target="_blank">', '%a_end%' => '</a>']);
+                    $response['msg'] = __('Error occurred. Please try again or try another :%a_start%update method:%a_end%', ['%a_start%' => '<a href="'.config('app.freescout_url').'/docs/update/" target="_blank">', '%a_end%' => '</a>']);
                     $response['msg'] .= '<br/><br/>'.$e->getMessage();
 
                     \Helper::logException($e);
@@ -346,7 +340,7 @@ class SystemController extends Controller
                         $response['new_version_available'] = \Updater::isNewVersionAvailable(config('app.version'));
                         $response['status'] = 'success';
                     } catch (\Exception $e) {
-                        $response['msg'] = __('Error occured').': '.$e->getMessage();
+                        $response['msg'] = __('Error occurred').': '.$e->getMessage();
                     }
                     if (!$response['msg'] && !$response['new_version_available']) {
                         // Adding session flash is useless as cache is cleated
@@ -363,7 +357,7 @@ class SystemController extends Controller
         }
 
         if ($response['status'] == 'error' && empty($response['msg'])) {
-            $response['msg'] = 'Unknown error occured';
+            $response['msg'] = 'Unknown error occurred';
         }
 
         return \Response::json($response);

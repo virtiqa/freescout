@@ -67,9 +67,9 @@ class Subscription extends Model
     ];
 
     /**
-     * List of events that occured.
+     * List of events that occurred.
      */
-    public static $occured_events = [];
+    public static $occurred_events = [];
 
     public $timestamps = false;
 
@@ -288,7 +288,7 @@ class Subscription extends Model
     }
 
     /**
-     * Process events which occured.
+     * Process events which occurred.
      */
     public static function processEvents()
     {
@@ -297,7 +297,7 @@ class Subscription extends Model
         $delay = now()->addSeconds(Conversation::UNDO_TIMOUT);
 
         // Collect into notify array information about all users who need to be notified
-        foreach (self::$occured_events as $event) {
+        foreach (self::$occurred_events as $event) {
             // Get mailbox users ids
             $mailbox_user_ids = [];
             foreach (self::$mediums as $medium) {
@@ -319,7 +319,7 @@ class Subscription extends Model
                     $threads = $event['conversation']->getThreads();
                     break;
                 } else {
-                    $users = $notify[$medium][$event['conversation']->id]['users'];
+                    $users[$medium] = $notify[$medium][$event['conversation']->id]['users'];
                     $threads = $notify[$medium][$event['conversation']->id]['threads'];
                 }
             }
@@ -341,8 +341,9 @@ class Subscription extends Model
 
                 if (count($medium_users_to_notify)) {
                     $notify[$medium][$event['conversation']->id] = [
-                        // Users subarray contains all users who need to receive notification for all events
-                        'users'            => array_unique(array_merge($users, $medium_users_to_notify)),
+                        // Users subarray contains all users who need to receive notification
+                        // for all events for the media.
+                        'users'            => array_unique(array_merge($users[$medium] ?? [], $medium_users_to_notify)),
                         'conversation'     => $event['conversation'],
                         'threads'          => $threads,
                         'mailbox_user_ids' => $mailbox_user_ids,
@@ -360,10 +361,17 @@ class Subscription extends Model
             }
         }
 
-        // - Menu notification (uses same medium as for email)
-        if (!empty($notify[self::MEDIUM_EMAIL]) || !empty($notify[self::MEDIUM_MENU])) {
-
-            $notify_menu = ($notify[self::MEDIUM_EMAIL] ?? []) + ($notify[self::MEDIUM_MENU] ?? []);
+        // - Menu notification (uses same medium as for Email, if email notifications are disabled - use Browser notificaitons)
+        if (!empty($notify[self::MEDIUM_EMAIL]) 
+            || !empty($notify[self::MEDIUM_BROWSER])
+            || !empty($notify[self::MEDIUM_MENU])
+        ) {
+            if (!empty($notify[self::MEDIUM_EMAIL])) {
+                $notify_menu = $notify[self::MEDIUM_EMAIL] ?? [];
+            } else {
+                $notify_menu = $notify[self::MEDIUM_BROWSER] ?? [];
+            }
+            $notify_menu = $notify_menu + ($notify[self::MEDIUM_MENU] ?? []);
             foreach ($notify_menu as $notify_info) {
                 $website_notification = new WebsiteNotification($notify_info['conversation'], self::chooseThread($notify_info['threads']));
                 $website_notification->delay($delay);
@@ -405,7 +413,7 @@ class Subscription extends Model
         // - Mobile
         \Eventy::action('subscription.process_events', $notify);
 
-        self::$occured_events = [];
+        self::$occurred_events = [];
     }
 
     /**
@@ -432,7 +440,7 @@ class Subscription extends Model
      */
     public static function registerEvent($event_type, $conversation, $caused_by_user_id, $process_now = false)
     {
-        self::$occured_events[] = [
+        self::$occurred_events[] = [
             'event_type'        => $event_type,
             'conversation'      => $conversation,
             'caused_by_user_id' => $caused_by_user_id,
@@ -440,7 +448,7 @@ class Subscription extends Model
 
         // Automatically add EVENT_TYPE_UPDATED
         if (!in_array($event_type, [self::EVENT_TYPE_UPDATED, self::EVENT_TYPE_NEW])) {
-            self::$occured_events[] = [
+            self::$occurred_events[] = [
                 'event_type'        => self::EVENT_TYPE_UPDATED,
                 'conversation'      => $conversation,
                 'caused_by_user_id' => $caused_by_user_id,

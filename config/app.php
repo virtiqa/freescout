@@ -18,7 +18,7 @@ return [
     | or any other location as required by the application or its packages.
     */
 
-    'version' => '1.8.46',
+    'version' => '1.8.73',
 
     /*
     |--------------------------------------------------------------------------
@@ -98,7 +98,7 @@ return [
     */
 
     'locale'          => env('APP_LOCALE', 'en'),
-    'locales'         => ['en', 'hr', 'cs', 'da', 'nl', 'fr', 'de', 'it', 'ja', 'ko', 'fa', 'pl', 'pt-PT', 'pt-BR', 'ru', 'es', 'sk', 'sv'],
+    'locales'         => ['en', 'hr', 'cs', 'da', 'nl', 'fi', 'fr', 'de', 'it', 'ja', 'ko', 'no', 'fa', 'pl', 'pt-PT', 'pt-BR', 'ru', 'es', 'sk', 'sv'],
     'locales_rtl'     => ['fa'],
     'default_locale'  => 'en',
 
@@ -188,19 +188,21 @@ return [
     | Checks for new jobs every --sleep seconds.
     | If --tries is set and job fails it is being processed right away without any delay.
     | --delay parameter does not work to set delays between retry attempts.
+    | --timeout parameter sets job timeout and is used to avoid queue:work stucking.
     |
     | Jobs sending emails are retried manually in handle().
     | Number of retries is set in each job class.
     |-------------------------------------------------------------------------
     */
-    'queue_work_params' => ['--queue' => 'emails,default', '--sleep' => '5', '--tries' => '1'],
+    'queue_work_params' => ['--queue' => 'emails,default', '--sleep' => '5', '--tries' => '1', '--timeout' => '1800'],
 
     /*
     |--------------------------------------------------------------------------
     | PHP extensions required by the app
+    | Replaced with installer.requirements.php
     |-------------------------------------------------------------------------
     */
-    'required_extensions' => ['mysql / mysqli', 'mbstring', 'xml', 'imap', /*'mcrypt' mcrypt is deprecated*/ 'json', 'gd', 'fileinfo', 'openssl', 'zip', 'tokenizer', 'curl', 'iconv'/*, 'dom', 'xmlwriter', 'libxml', 'phar'*/],
+    //'required_extensions' => ['mysql / mysqli', 'mbstring', 'xml', 'imap', /*'mcrypt' mcrypt is deprecated*/ 'json', 'gd', 'fileinfo', 'openssl', 'zip', 'tokenizer', 'curl', 'iconv'/*, 'dom', 'xmlwriter', 'libxml', 'phar'*/],
 
     /*
     |--------------------------------------------------------------------------
@@ -273,6 +275,8 @@ return [
     |-------------------------------------------------------------------------
     */
     'viewable_attachments'    => env('APP_VIEWABLE_ATTACHMENTS', ['jpg', 'jpeg', 'jfif', 'pjpeg', 'pjp', 'apng', 'bmp', 'gif', 'ico', 'cur', 'png', 'tif', 'tiff', 'webp', 'pdf', 'txt', 'mp3', 'wav', 'ogg', 'wma']),
+    // Regular expremissions (#...#)
+    'viewable_mime_types'    => env('APP_VIEWABLE_MIME_TYPES', ['image/.*', 'application/pdf', 'text/plain', 'audio/.*']),
 
     /*
     |--------------------------------------------------------------------------
@@ -365,6 +369,45 @@ return [
     |--------------------------------------------------------------------------
     */
     'proxy' => env('APP_PROXY', ''),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Custom headers to add to all outgoing emails.
+    | https://github.com/freescout-helpdesk/freescout/issues/2546#issuecomment-1380414908
+    |--------------------------------------------------------------------------
+    */
+    'custom_mail_headers' => env('APP_CUSTOM_MAIL_HEADERS', ''),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Library used to fetch emails: webklex/laravel-imap, webklex/php-imap
+    |-------------------------------------------------------------------------
+    */
+    'new_fetching_library'    => env('APP_NEW_FETCHING_LIBRARY', false),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Timeout for curl and GuzzleHttp.
+    |-------------------------------------------------------------------------
+    */
+    'curl_timeout'    => env('APP_CURL_TIMEOUT', 40),
+    'curl_connect_timeout'    => env('APP_CURL_CONNECTION_TIMEOUT', 30),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Customer photo size (px).
+    | https://github.com/freescout-helpdesk/freescout/issues/2919
+    |-------------------------------------------------------------------------
+    */
+    'customer_photo_size'    => env('APP_CUSTOMER_PHOTO_SIZE', 64),
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | User photo size (px).
+    |-------------------------------------------------------------------------
+    */
+    'user_photo_size'    => env('APP_USER_PHOTO_SIZE', 50),
 
     /*
     |--------------------------------------------------------------------------

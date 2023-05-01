@@ -6,6 +6,7 @@ use App\Attachment;
 use App\Customer;
 use App\Mailbox;
 use App\Folder;
+use App\Follower;
 use App\Thread;
 use App\User;
 use App\Events\UserAddedNote;
@@ -70,8 +71,8 @@ class Conversation extends Model
     const STATUS_PENDING = 2;
     const STATUS_CLOSED = 3;
     const STATUS_SPAM = 4;
-    // Present in the API, but what does it mean?
-    const STATUS_OPEN = 5;
+    // Not used
+    //const STATUS_OPEN = 5;
 
     public static $statuses = [
         self::STATUS_ACTIVE  => 'active',
@@ -275,7 +276,7 @@ class Conversation extends Model
     }
 
     /**
-     * Chached mailbox.
+     * Cached mailbox.
      * @return [type] [description]
      */
     public function mailbox_cached()
@@ -465,7 +466,7 @@ class Conversation extends Model
             }
         }
 
-        $this->preview = \App\Misc\Helper::textPreview($text, self::PREVIEW_MAXLENGTH);
+        $this->preview = \Helper::textPreview($text, self::PREVIEW_MAXLENGTH);
 
         return $this->preview;
     }
@@ -501,6 +502,11 @@ class Conversation extends Model
         return $this->status == self::STATUS_ACTIVE;
     }
 
+    public function isPending()
+    {
+        return $this->status == self::STATUS_PENDING;
+    }
+
     public function isSpam()
     {
         return $this->status == self::STATUS_SPAM;
@@ -509,6 +515,11 @@ class Conversation extends Model
     public function isClosed()
     {
         return $this->status == self::STATUS_CLOSED;
+    }
+
+    public function isPublished()
+    {
+        return $this->state == self::STATE_PUBLISHED;
     }
 
     /**
@@ -547,9 +558,9 @@ class Conversation extends Model
                 return __('Spam');
                 break;
 
-            case self::STATUS_OPEN:
-                return __('Open');
-                break;
+            // case self::STATUS_OPEN:
+            //     return __('Open');
+            //     break;
 
             default:
                 return '';
@@ -595,7 +606,7 @@ class Conversation extends Model
     }
 
     /**
-     * Set conersation status and all related fields.
+     * Set conversation status and all related fields.
      *
      * @param int $status
      */
@@ -655,6 +666,7 @@ class Conversation extends Model
 
         $order_bys = $folder->getOrderByArray();
 
+        // Next.
         if ($mode != 'prev') {
             // Try to get next conversation
             $query_next = $query;
@@ -673,19 +685,12 @@ class Conversation extends Model
             }
             $conversation = $query_next->first();
         }
-        // echo 'folder_id'.$folder->id.'|';
-        // echo 'id'.$this->id.'|';
-        // echo 'status'.self::STATUS_ACTIVE.'|';
-        // echo '$this->status'.$this->status.'|';
-        // echo '$this->last_reply_at'.$this->last_reply_at.'|';
-        // echo $query_next->toSql();
-        // exit();
 
         if ($conversation || $mode == 'next') {
             return $conversation;
         }
 
-        // Try to get previous conversation
+        // Prev.
         $query_prev = $query;
         foreach ($order_bys as $order_by) {
             foreach ($order_by as $field => $sort_order) {
@@ -697,7 +702,7 @@ class Conversation extends Model
                 } else {
                     $query_prev->where($field, '>=', $this->$field);
                 }
-                $query_prev->orderBy($field, $sort_order);
+                $query_prev->orderBy($field, $sort_order == 'asc' ? 'desc' : 'asc');
             }
         }
 
@@ -1289,6 +1294,11 @@ class Conversation extends Model
             'meta'        => [Thread::META_MERGED_INTO_CONV => $this->id],
         ]);
 
+        if ($merge_conversation->has_attachments && !$this->has_attachments) {
+            $this->has_attachments = true;
+            $this->save();
+        }
+
         // Delete old conversation.
         $merge_conversation->deleteToFolder($user);
 
@@ -1566,6 +1576,14 @@ class Conversation extends Model
     }
 
     /**
+     * Is it an email conversation.
+     */
+    public function isEmail()
+    {
+        return ($this->type == self::TYPE_EMAIL);
+    }
+
+    /**
      * Is it as phone conversation.
      */
     public function isPhone()
@@ -1765,6 +1783,10 @@ class Conversation extends Model
 
             // Delete threads.
             Thread::whereIn('conversation_id', $ids)->delete();
+
+            // Delete followers.
+            Follower::whereIn('conversation_id', $ids)->delete();
+
             // Delete conversations.
             Conversation::whereIn('id', $ids)->delete();
             ConversationFolder::whereIn('conversation_id', $ids)->delete();
@@ -2109,15 +2131,6 @@ class Conversation extends Model
         } else {
             // Get IDs of mailboxes to which user has access
             $mailbox_ids = $user->mailboxesIdsCanView();
-        }
-
-        $query_conversations->whereIn('conversations.mailbox_id', $mailbox_ids);
-        
-        $like_op = 'like';
-        if (\Helper::isPgSql()) {
-            $like_op = 'ilike';
-        }
-
         if ($q) {
             $query_conversations->where(function ($query) use ($like, $filters, $q, $like_op) {
                 $query->where('conversations.subject', $like_op, $like)
@@ -2270,6 +2283,25 @@ class Conversation extends Model
 
         if ($save) {
             $this->save();
+        }
+    }
+
+    public static function updatePreview($conversation_id)
+    {
+        // Get last suitable thread.
+        $thread = Thread::where('conversation_id', $conversation_id)
+            ->whereIn('type', [Thread::TYPE_CUSTOMER, Thread::TYPE_MESSAGE, Thread::TYPE_NOTE])
+            ->where('state', Thread::STATE_PUBLISHED)
+            ->where(function ($query) {
+                $query->where('subtype', null)
+                    ->orWhere('subtype', '!=', Thread::SUBTYPE_FORWARD);
+            })
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if ($thread) {
+            $thread->conversation->setPreview($thread->body);
+            $thread->conversation->save();
         }
     }
 }
