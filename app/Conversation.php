@@ -2131,6 +2131,7 @@ class Conversation extends Model
         } else {
             // Get IDs of mailboxes to which user has access
             $mailbox_ids = $user->mailboxesIdsCanView();
+        }
         if ($q) {
             $query_conversations->where(function ($query) use ($like, $filters, $q, $like_op) {
                 $query->where('conversations.subject', $like_op, $like)
@@ -2234,6 +2235,7 @@ class Conversation extends Model
         $query_conversations->orderBy($sorting['sort_by'], $sorting['order']);
 
         return $query_conversations;
+
     }
 
     public function getNumberAttribute($value)
