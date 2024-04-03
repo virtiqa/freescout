@@ -58,6 +58,9 @@ class Mailbox extends Model
     const OUT_ENCRYPTION_NONE = 1;
     const OUT_ENCRYPTION_SSL = 2;
     const OUT_ENCRYPTION_TLS = 3;
+    // StartTLS is already included in TLS:
+    // allow_self_signed = true
+    // verify_peer = false
 
     public static $out_encryptions = [
         self::OUT_ENCRYPTION_NONE => '',
@@ -82,11 +85,16 @@ class Mailbox extends Model
     const IN_ENCRYPTION_NONE = 1;
     const IN_ENCRYPTION_SSL = 2;
     const IN_ENCRYPTION_TLS = 3;
+    // For Webklex/laravel-imap this option is the same as 'none'.
+    // For Webklex/php-imap it works:
+    // https://github.com/Webklex/php-imap/pull/180
+    const IN_ENCRYPTION_STARTTLS = 4;
 
     public static $in_encryptions = [
         self::IN_ENCRYPTION_NONE => '',
         self::IN_ENCRYPTION_SSL  => 'ssl',
         self::IN_ENCRYPTION_TLS  => 'tls',
+        self::IN_ENCRYPTION_STARTTLS  => 'starttls',
     ];
 
     /**
@@ -102,6 +110,7 @@ class Mailbox extends Model
     const ACCESS_PERM_PERMISSIONS  = 'perm';
     const ACCESS_PERM_AUTO_REPLIES = 'auto';
     const ACCESS_PERM_SIGNATURE    = 'sig';
+    const ACCESS_PERM_ASSIGNED     = 'asg';
 
     public static $access_permissions = [
         self::ACCESS_PERM_EDIT,
@@ -139,7 +148,7 @@ class Mailbox extends Model
      *
      * @var [type]
      */
-    protected $fillable = ['name', 'email', 'aliases', 'auto_bcc', 'from_name', 'from_name_custom', 'ticket_status', 'ticket_assignee', 'template', 'before_reply', 'signature', 'out_method', 'out_server', 'out_username', 'out_password', 'out_port', 'out_encryption', 'in_server', 'in_port', 'in_username', 'in_password', 'in_protocol', 'in_encryption', 'in_validate_cert', 'auto_reply_enabled', 'auto_reply_subject', 'auto_reply_message', 'office_hours_enabled', 'ratings', 'ratings_placement', 'ratings_text', 'imap_sent_folder'];
+    protected $fillable = ['name', 'email', 'aliases', 'aliases_reply', 'auto_bcc', 'from_name', 'from_name_custom', 'ticket_status', 'ticket_assignee', 'template', 'before_reply', 'signature', 'out_method', 'out_server', 'out_username', 'out_password', 'out_port', 'out_encryption', 'in_server', 'in_port', 'in_username', 'in_password', 'in_protocol', 'in_encryption', 'in_validate_cert', 'auto_reply_enabled', 'auto_reply_subject', 'auto_reply_message', 'office_hours_enabled', 'ratings', 'ratings_placement', 'ratings_text', 'imap_sent_folder'];
 
     protected static function boot()
     {
@@ -558,12 +567,21 @@ class Mailbox extends Model
         $name = $this->name;
 
         if ($this->from_name == self::FROM_NAME_CUSTOM && $this->from_name_custom) {
-            $name = $this->from_name_custom;
+            $data = [
+                'mailbox' => $this,
+                'mailbox_from_name' => '', // To avoid recursion.
+                'conversation' => $conversation,
+                'user' => $from_user ?: auth()->user(),
+            ];
+            $name = \MailHelper::replaceMailVars($this->from_name_custom, $data, false, true);
         } elseif ($this->from_name == self::FROM_NAME_USER && $from_user) {
             $name = $from_user->getFullName();
         }
 
-        return [ 'address' => \Eventy::filter( 'mailbox.get_mail_from_address', $this->email, $from_user, $conversation ), 'name' => \Eventy::filter( 'mailbox.get_mail_from_name', $name, $from_user, $conversation ) ];
+        return [
+            'address' => \Eventy::filter('mailbox.get_mail_from_address', $this->email, $from_user, $conversation),
+            'name' => \Eventy::filter('mailbox.get_mail_from_name', $name, $from_user, $conversation)
+        ];
     }
 
     /**
@@ -718,8 +736,12 @@ class Mailbox extends Model
     /**
      * Get mailbox aliases as an associative array.
      */
-    public function getAliases($include_mailbox_email = true)
+    public function getAliases($include_mailbox_email = true, $check_aliases_reply = false)
     {
+        if ($check_aliases_reply && !$this->aliases_reply) {
+            return [];
+        }
+
         if ($include_mailbox_email) {
             $emails = [$this->email => $this->name];
         } else {

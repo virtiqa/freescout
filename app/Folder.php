@@ -223,6 +223,15 @@ class Folder extends Model
 
     public function updateCounters()
     {
+        if (config('app.update_folder_counters_in_background')) {
+            \App\Jobs\UpdateFolderCounters::dispatch($this);
+        } else {
+            $this->updateCountersNow();
+        }
+    }
+
+    public function updateCountersNow()
+    {
         if (\Eventy::filter('folder.update_counters', false, $this)) {
             return;
         }

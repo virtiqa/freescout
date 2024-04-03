@@ -5,6 +5,7 @@
 
 namespace App;
 
+use App\Mailbox;
 use App\Notifications\BroadcastNotification;
 use App\Notifications\WebsiteNotification;
 use Illuminate\Database\Eloquent\Model;
@@ -158,7 +159,18 @@ class Subscription extends Model
      */
     public static function usersToNotify($event_type, $conversation, $threads, $mailbox_user_ids = null)
     {
-        $thread = $threads[0];
+        $users_to_notify = [];
+        $thread = null;
+
+        if (isset($threads[0])) {
+            $thread = $threads[0];
+        } elseif (count($threads)) {
+            $thread = array_shift(array_values($threads));
+        }
+
+        if (!$thread) {
+            return $users_to_notify;
+        }
 
         // Ignore imported threads.
         if ($thread->imported) {
@@ -242,7 +254,6 @@ class Subscription extends Model
         $subscriptions = \Eventy::filter('subscription.subscriptions', $subscriptions, $conversation, $events, $thread);
 
         // Filter subscribers
-        $users_to_notify = [];
         foreach ($subscriptions as $i => $subscription) {
             // Actions on conversation where user is assignee
             if (in_array($subscription->event, [self::EVENT_CONVERSATION_ASSIGNED_TO_ME, self::EVENT_CUSTOMER_REPLIED_TO_MY, self::EVENT_USER_REPLIED_TO_MY]) 
@@ -272,6 +283,13 @@ class Subscription extends Model
                 }
             }
             //}
+            
+            // https://github.com/freescout-helpdesk/freescout/issues/3843#issuecomment-1974811457
+            if ($conversation->user_id != $subscription->user_id
+                && $subscription->user->canSeeOnlyAssignedConversations()
+            ) {
+                continue;
+            }
 
             if (\Eventy::filter('subscription.filter_out', false, $subscription, $thread)) {
                 continue;

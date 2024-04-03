@@ -43,7 +43,7 @@
 
             <div class="col-sm-6">
                 <input id="mail_host" type="text" class="form-control input-sized" name="settings[mail_host]" value="{{ old('settings.mail_host', $settings['mail_host']) }}" maxlength="255"  @if ($settings['mail_driver'] == \MailHelper::MAIL_DRIVER_SMTP) required @endif autofocus>
-                @if (strstr($settings['mail_host'], '.gmail.'))
+                @if (strstr($settings['mail_host'] ?? '', '.gmail.'))
                     <div class="form-help">
                         {!! __("Make sure to :%link_start%enable less secure apps:%link_end% in your Google account to send emails from Gmail.", ['%link_start%' => '<a href="https://myaccount.google.com/lesssecureapps?pli=1" target="_blank">', '%link_end%' => '</a>']) !!}
                     </div>
@@ -104,6 +104,7 @@
                 </span>
             </div>
             <div class="form-help">{!! __("Make sure to save settings before testing.") !!}</div>
+            <pre class="alert alert-warning hidden" id="send_test_log"></pre>
         </div>
     </div>
 
@@ -124,6 +125,20 @@
             </select>
         </div>
     </div>
+
+    {{--<div class="form-group{{ $errors->has('settings[use_mail_date_on_fetching]') ? ' has-error' : '' }}">
+        <label for="use_mail_date_on_fetching" class="col-sm-2 control-label">{{ __('Mail Date & Time') }}</label>
+
+        <div class="col-sm-6">
+            <div class="control-group">
+                <label for="use_mail_date_on_fetching_0" class="radio"><input type="radio" name="settings[use_mail_date_on_fetching]" value="false" id="use_mail_date_on_fetching_0" @if (!$settings['use_mail_date_on_fetching'])checked="checked"@endif> {{ __('Use actual fetching date and time') }}</label>
+
+                <label for="use_mail_date_on_fetching_1" class="radio"><input type="radio" name="settings[use_mail_date_on_fetching]" value="true" id="use_mail_date_on_fetching_1" @if ($settings['use_mail_date_on_fetching'])checked="checked"@endif> {{ __('Use date and time from mail headers') }}</label>
+            </div>
+
+            @include('partials/field_error', ['field'=>'settings.use_mail_date_on_fetching'])
+        </div>
+    </div>--}}
 
     <div class="form-group margin-top">
         <div class="col-sm-6 col-sm-offset-2">

@@ -11,6 +11,13 @@
 	    </p>
 	    <div class="module-details">
 		    <span>{{ __('Version') }}: {{ $module['version'] }}</span>
+            @if (!empty($module['author']))
+                @if(!empty($module['authorUrl']))
+                    | <a href="{{ $module['authorUrl'] }}" target="_blank">{{$module['author']}}</a>
+                @else
+                    | {{$module['author']}}
+                @endif
+            @endif
 		    @if (!empty($module['detailsUrl']))
 		    	| <a href="{{ $module['detailsUrl'] }}" target="_blank">{{ __('View details') }}</a>
 		    @endif
@@ -41,7 +48,7 @@
 				@elseif (!empty($module['activated']))
 					<button type="submit" class="btn btn-primary activate-trigger" data-loading-text="{{ __('Activating') }}…">{{ __('Activate') }}</button>
 				@else
-					<form action="javascript:installModule('{{ $module['alias'] }}');">
+					<form action="" class="install-module-form" data-module-alias="{{ $module['alias'] }}">
 					<div class="input-group">
 						<input type="text" class="form-control license-key" placeholder="{{ __('License Key') }}" value="{{ App\Module::getLicense($module['alias']) }}" required="required">
 						<span class="input-group-btn">

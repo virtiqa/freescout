@@ -36,6 +36,7 @@ body.user-is-guest {
 .content-full .container {
     padding: 0;
     width: 100% !important;
+    min-height: 415px;
 }
 .layout-2col {
     display: flex;
@@ -599,7 +600,8 @@ select.form-control {
 .btn-danger.btn-light:hover {
     background-color: #c9302c;
 }
-.has-error.help-block {
+.has-error.help-block,
+.parsley-required {
     color: #a94442;
 }
 .has-error .form-control.parsley-exclude {
@@ -928,6 +930,7 @@ a h4 {
     padding-right: 20px;
     margin: 0;
     display: block;
+    overflow: hidden;
 }
 .dash-card .waiting-since {
     color: #93a1af;
@@ -997,6 +1000,9 @@ a h4 {
 /**
  * Editor
  */
+.summernote-inservar {
+    max-width: 200px;
+}
 .note-editor.note-frame {
     border-color: #dee4e9 !important;
 }
@@ -1106,7 +1112,7 @@ a h4 {
 }
 .draft-saved {
     color: #a5b2bd;
-    font-size: 13.4px;
+    font-size: 12.4px;
     float: left;
     position: relative;
     top: 2px;
@@ -1365,7 +1371,8 @@ thead .conv-cb label {
     display: block;
     font-weight: bold;
 }
-.table-conversations th .conv-col-sort {
+.table-conversations th .conv-col-sort,
+.table-conversations th.conv-owner span {
     cursor: pointer;
 }
 .table.table-conversations tbody td {
@@ -1549,6 +1556,9 @@ table.table-conversations td.conv-attachment {
 .table-conversations .glyphicon-earphone {
     color: #93a1af;
 }
+.table-conversations .glyphicon-comment {
+    color: #93a1af;
+}
 .table-pager {
     float: right;
 }
@@ -1573,6 +1583,14 @@ table.table-conversations td.conv-attachment {
 /*.conv-subject-number {
     display: none;
 }*/
+.conv-owner .glyphicon {
+    margin-left: 3px;
+    display: none;
+}
+.conv-owner:hover .glyphicon,
+.conv-owner.filtered .glyphicon {
+    display: inline-block;
+}
 .conv-owner-mobile {
     display: none;
     font-weight: normal;
@@ -2419,6 +2437,9 @@ button.conv-checkbox-clear {
 .phone-conv-fields {
     display: none;
 }
+.custom-conv-fields{
+    display: none;
+}
 .toggle-field {
     padding-left: 4px;
     padding-bottom: 5px;
@@ -2553,7 +2574,7 @@ button.conv-checkbox-clear {
 }
 .conv-type-chat .conv-reply-block:not(.conv-note-block) .note-btn-attachment,
 .conv-type-chat .conv-reply-block:not(.conv-note-block) .note-actions .note-btn,
-.conv-type-chat .conv-reply-block:not(.conv-note-block) .btn-codeview + .note-btn-group .note-btn {
+.conv-type-chat .conv-reply-block:not(.conv-note-block) .btn-codeview ~ .note-btn-group .note-btn {
     display: block;
 }
 .alert-switch-to-note {
@@ -3343,11 +3364,11 @@ ul.sidebar-block-list {
     background-color: #f9fafa;
 }
 .web-notification.is-unread a {
-    background-color: #f1faff;
+    background-color: #d5f0ff;
 }
 .web-notification.is-unread a:hover,
 .web-notification.is-unread a:focus {
-    background-color: #e7f6ff;
+    background-color: #bce7ff;
 }
 .web-notification-msg {
     line-height: 18px;
@@ -3633,6 +3654,14 @@ body.print {
     margin: 0;
     padding-left: 12px;
 }
+@media print {
+    a[href]:after {
+        content: none !important;
+    }
+    .thread-content a[href]:after {
+        content: " (" attr(href) ") " !important;
+    }
+}
 
 /**
  * Misc
@@ -3875,6 +3904,15 @@ a.help-icon:hover {
 }
 .link-grey:hover {
     color: #4f5d6b!important;
+    text-decoration: none!important;
+}
+.link-grey-blue,
+.link-grey-blue:focus {
+    color: #93a1af!important;
+    text-decoration: none!important;
+}
+.link-grey-blue:hover {
+    color: #0078D7!important;
     text-decoration: none!important;
 }
 .link-underlined {
@@ -4242,6 +4280,7 @@ a.disabled:focus {
     display: inline-block;
     overflow: hidden;
     word-wrap: normal;
+    text-overflow: ellipsis;
 }
 .mailbox-name .glyphicon {
     top: 2px;
@@ -4303,10 +4342,14 @@ a.disabled:focus {
     max-height: 200px;
     overflow-y: auto;
 }
-.conv-merge-list .radio,
-.conv-merge-search-result .radio {
+.conv-merge-list .checkbox,
+.conv-merge-search-result .checkbox,
+.conv-merge-selected .checkbox {
     margin-top: 0;
     margin-bottom: 0;
+}
+.conv-merge-selected .alert {
+    margin-bottom: 10px;
 }
 .conv-tags {
     float: left;
@@ -4345,10 +4388,24 @@ a.disabled:focus {
     border-radius: 3px;
     background-color: #97a4b0;
 }
+.fs-tag-green {
+    background-color: #52ad67;
+}
 .conv-subject .fs-tag {
     margin-right: 6px;
     position: relative;
     top: 1px;
+}
+.fs-tag-btn {
+    margin-top: 8px;
+    margin-right: 8px;
+    line-height: 14px;
+    font-size: 15px;
+    padding: 4px 6px 4px 6px;
+    vertical-align: inherit;
+}
+#send_test_log {
+    max-height: 200px;
 }
 .glyphicon-spin {
     -webkit-animation: spin 1000ms infinite linear;
@@ -4375,6 +4432,69 @@ a.disabled:focus {
     }
 }
 
+.chats {
+    height: calc(100vh - 125px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    margin-right: -11px;
+}
+.chats.sidebar-menu > li:nth-child(n+2) > a {
+    padding-left: 22px;
+}
+.chat-mode .note-statusbar {
+    display: none;
+}
+.chat-mode .conv-note-block .note-statusbar {
+    display: block;
+}
+.chat-mode .conv-note-block .note-placeholder {
+    /*color: #fff;*/
+    display: none !important;
+}
+.conv-top-chat {
+    line-height: 21px;
+}
+.chats.sidebar-menu > li > a {
+    height: auto;
+    border-radius: 0;
+}
+.chats.sidebar-menu > li {
+    border-radius: 0;
+}
+.chat-preview {
+    color: #93a1af;
+    font-size: 13.4px;
+    display: inline-block;
+    padding-top: 1px;
+    max-width: 217px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: normal;
+}
+.chats li {
+    border-bottom: 1px solid #e3e8eb;
+}
+.chats li.active {
+    border-bottom: 0;
+}
+.chats li.new {
+    background-color: #f4f8fd;
+}
+.chat-tags .fs-tag-green {
+    opacity: 0.9;
+}
+.chats-load-more {
+    text-align: center;
+    height: 45px !important;
+    line-height: 35px !important;
+}
+.chats-load-more i {
+    font-size: 18px !important;
+    position: static !important;
+    top: 0 !important;
+}
+
 @media (max-width: 350px) {
     .conv-next-prev {
         display: none !important;
@@ -4387,6 +4507,10 @@ a.disabled:focus {
 @media (max-width:767px) {
     .descr-block {
         margin: 20px 0;
+    }
+    /* Chat placeholder is not needed on mobile as mobile devices don't have ENTER button */
+    .chat-mode .note-placeholder {
+        display: none !important;
     }
 }
 /**

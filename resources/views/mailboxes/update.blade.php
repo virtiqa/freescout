@@ -51,14 +51,20 @@
                     </div>
 
                     @if (Auth::user()->can('updateSettings', $mailbox))
-                        <div class="form-group{{ $errors->has('aliases') ? ' has-error' : '' }}">
+                        <div class="form-group{{ $errors->has('aliases') ? ' has-error' : '' }} margin-bottom-5">
                             <label for="aliases" class="col-sm-2 control-label">{{ __('Aliases') }}</label>
 
                             <div class="col-sm-6">
                                 <div class="flexy">
-                                    <input id="aliases" type="text" class="form-control input-sized" name="aliases" value="{{ old('aliases', $mailbox->aliases) }}" maxlength="255">
+                                    <input id="aliases" type="text" class="form-control input-sized" name="aliases" value="{{ old('aliases', $mailbox->aliases) }}">
 
                                     <i class="glyphicon glyphicon-info-sign icon-info" data-toggle="popover" data-trigger="hover" data-html="true" data-placement="left"  data-content="{{ __('Aliases are other email addresses that also forward to your mailbox address. Separate each email with a comma.') }}&lt;br&gt;&lt;br&gt;alias1@example.org, alias2@example.org({{ __('Mailbox Name') }}), alias3@exampl.org"></i>
+                                </div>
+
+                                <div class="controls">
+                                    <label for="aliases_reply" class="checkbox inline plain">
+                                        <input type="checkbox" name="aliases_reply" value="1" id="aliases_reply" @if (old('aliases_reply', $mailbox->aliases_reply))checked="checked"@endif> <span class="text-help">{{ __('Allow to reply from aliases') }}</span>
+                                    </label>
                                 </div>
 
                                 @include('partials/field_error', ['field'=>'aliases'])

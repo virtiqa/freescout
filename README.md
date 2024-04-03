@@ -9,15 +9,15 @@
 
 </div>
 
-**FreeScout** is the super lightweight free open source help desk and shared inbox written in PHP (Laravel framework) – self hosted clone of HelpScout. Now you can enjoy free Zendesk & Help Scout without giving up privacy or locking yourself into a service you don't control. FreeScout has been developed from scratch and is not using any copyrighted Help Scout or Zendesk materials.
+**FreeScout** is the super lightweight and powerful free open source help desk and shared inbox built with PHP (Laravel framework). Now you can enjoy free Zendesk & Help Scout without giving up privacy or locking yourself into a service you don't control. FreeScout has been developed from scratch and is not using any copyrighted Help Scout or Zendesk materials.
 
 If you want to support the project feel free to **star this repository**. It helps to increase the visibility of the project and let people know that it is valuable. Thanks for your support!
 
 ![FreeScout](https://freescout-helpdesk.github.io/img/screenshots/screenshot.png)
 
 ## Table of Contents
-   * [Features](#features)
    * [Demo](#demo)
+   * [Features](#features)
    * [Mobile Apps](#mobile-apps)
    * [Requirements](#requirements)
    * [Installation](#installation)
@@ -28,13 +28,19 @@ If you want to support the project feel free to **star this repository**. It hel
    * [Contributing](#contributing)
    * [Screenshots](#screenshots)
 
+## Demo
+
+**[Live Demo](https://demo.freescout.net)**
+
 ## Features
 
   * No limitations on the number of users, tickets, mailboxes, etc.
   * 100% Mobile-friendly.
-  * Multilingual (English, Croatian, Czech, Danish, Dutch, Finnish, French, German, Italian, Japanese, Korean, Norwegian, Persian, Polish, Portuguese, Russian, Spanish, Slovak, Swedish).
+  * Multilingual: English, Chinese, Croatian, Czech, Danish, Dutch, Finnish, French, German, Italian, Japanese, Korean, Norwegian, Persian, Polish, Portuguese, Russian, Spanish, Slovak, Swedish, Turkish.
   * Seamless email integration.
   * Supports modern Microsoft Exchange authentication.
+  * Fully supports screen readers (for visually impaired).
+  * Built with strong focus on [security](https://freescout.net/security).
   * Web installer & updater.
   * Starred conversations.
   * Forwarding conversations.
@@ -53,12 +59,9 @@ If you want to support the project feel free to **star this repository**. It hel
   * Open tracking.
   * Editing threads.
   * Search.
+  * And more…
 
 Need anything else? Suggest features [here](https://freescout.net/request-feature/).
-
-## Demo
-
-**[Live Demo](https://demo.freescout.net)**
 
 ## Mobile Apps
 
@@ -108,7 +111,7 @@ Images & one-click installs:
 
 Don't miss news, updates and new modules!
 
-[Email Newsletter](https://freescout.net/subscribe/) | [Facebook](https://freescout.net/facebook/) | [Twitter](https://freescout.net/twitter/) | [YouTube](https://freescout.net/youtube/) | [RSS](https://freescout.net/feed/)
+[Email Newsletter](https://freescout.net/subscribe/) | [Facebook](https://freescout.net/facebook/) | [Twitter](https://freescout.net/twitter/) | [YouTube](https://freescout.net/youtube/) | [Telegram](https://freescout.net/telegram/) | [RSS](https://freescout.net/feed/)
 
 ## Contributing
 

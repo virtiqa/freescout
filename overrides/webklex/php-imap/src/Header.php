@@ -204,7 +204,9 @@ class Header {
         $this->extractAddresses($header);
 
         if (property_exists($header, 'subject')) {
-            $this->set("subject", $this->decode($header->subject));
+            //$this->set("subject", $this->decode($header->subject));
+            $subject = \MailHelper::decodeSubject($header->subject);
+            $this->set("subject", $subject);
         }
         if (property_exists($header, 'references')) {
             $this->set("references", $this->decode($header->references));
@@ -335,10 +337,20 @@ class Header {
      * object has two properties, charset and text.
      */
     public function mime_header_decode(string $text): array {
+
+        // imap_mime_header_decode() can't decode some headers: =?iso-2022-jp?B?...?=
+        if (\Str::startsWith($text, '=?iso-2022-jp?')) {
+            return [(object)[
+                "charset" => 'iso-2022-jp',
+                "text"    => \MailHelper::decodeSubject($text)
+            ]];
+        }
+
         if (extension_loaded('imap')) {
             $result = \imap_mime_header_decode($text);
             return is_array($result) ? $result : [];
         }
+
         $charset = $this->getEncoding($text);
         return [(object)[
             "charset" => $charset,
@@ -389,6 +401,10 @@ class Header {
         // convertEncoding() function basically means convertToUtf8(), so when we convert ASCII string into UTF-8 it gets broken.
         if (strtolower($from) == 'us-ascii' && $to == 'UTF-8') {
             return $str;
+        }
+
+        if (strtolower($from) == 'iso-2022-jp'){
+           $from = 'iso-2022-jp-ms';
         }
 
         try {
@@ -659,7 +675,8 @@ class Header {
                 $value = (string)$value;
             }
             // Only parse strings and don't parse any attributes like the user-agent
-            if (($key == "user_agent") === false) {
+            // https://github.com/Webklex/php-imap/issues/401
+            if (($key == "user_agent") === false && ($key == "subject") === false) {
                 if (($pos = strpos($value, ";")) !== false) {
                     $original = substr($value, 0, $pos);
                     $this->set($key, trim(rtrim($original)), true);

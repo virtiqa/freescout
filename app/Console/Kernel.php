@@ -69,8 +69,11 @@ class Kernel extends ConsoleKernel
         $schedule->command('freescout:clean-send-log')
             ->monthly();
 
-        $schedule->command('freescout:clean-tmp')
+        $schedule->command('freescout:clean-notifications-table')
             ->weekly();
+
+        $schedule->command('freescout:clean-tmp')
+            ->daily();
 
         // Logs monitoring.
         $alert_logs_period = config('app.alert_logs_period');
@@ -98,18 +101,25 @@ class Kernel extends ConsoleKernel
         }
 
         $fetch_command_identifier = \Helper::getWorkerIdentifier('freescout:fetch-emails');
+        $fetch_command_name = 'freescout:fetch-emails --identifier='.$fetch_command_identifier;
 
         // Kill fetch commands running for too long.
         // In shedule:run this code is executed every time $schedule->command() in this function is executed.
         if ($this->isScheduleRun() && function_exists('shell_exec')) {
             $fetch_command_pids = \Helper::getRunningProcesses($fetch_command_identifier);
 
-            $mutex_name = $schedule->command('freescout:fetch-emails')
-                ->skip(function () {
-                    return true;
-                })
-                ->mutexName();
-            
+            // The name of the command here must be exactly the same as below!
+            // Otherwise long fetching will be killed and won't run longer than 1 mintue.
+            // $schedule->command() creates a new mutex, so we need to store mutex name in cache.
+            // $mutex_name = $schedule->command($fetch_command_name)
+            //     ->everyMinute() - this also need to be set
+            //     ->skip(function () {
+            //         return true;
+            //     })
+            //     ->mutexName();
+
+            $mutex_name = \Cache::get('fetch_mutex_name') ?? '';
+
             // If there is no cache mutext but there are running fetch commands 
             // it means the mutex had expired after self::FETCH_MAX_EXECUTION_TIME
             // and the existing command(s) is running longer than self::FETCH_MAX_EXECUTION_TIME.
@@ -131,7 +141,7 @@ class Kernel extends ConsoleKernel
         }
 
         // Fetch emails from mailboxes
-        $fetch_command = $schedule->command('freescout:fetch-emails --identifier='.$fetch_command_identifier)
+        $fetch_command = $schedule->command($fetch_command_name)
             // withoutOverlapping() option creates a mutex in the cache 
             // which by default expires in 24 hours.
             // So we are passing an 'expiresAt' parameter to withoutOverlapping() to
@@ -160,6 +170,7 @@ class Kernel extends ConsoleKernel
                 $fetch_command->everyMinute();
                 break;
         }
+        \Cache::put('fetch_mutex_name', $fetch_command->mutexName(), self::FETCH_MAX_EXECUTION_TIME);
 
         $schedule = \Eventy::filter('schedule', $schedule);
 

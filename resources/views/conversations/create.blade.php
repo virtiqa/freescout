@@ -31,8 +31,9 @@
                     <h2>{{ __("New Conversation") }}</h2>
 
                     <div class="btn-group">
-                        <button type="button" class="btn btn-default active" id="email-conv-switch" onclick="switchToNewEmailConversation({{ App\Conversation::TYPE_EMAIL }})"><i class="glyphicon glyphicon-envelope"></i></button>
-                        <button type="button" class="btn btn-default" id="phone-conv-switch" onclick="switchToNewPhoneConversation()"><i class="glyphicon glyphicon-earphone"></i></button>
+                        <button type="button" class="btn btn-default active conv-switch-button" id="email-conv-switch"><i class="glyphicon glyphicon-envelope"></i></button>
+                        <button type="button" class="btn btn-default conv-switch-button" id="phone-conv-switch"><i class="glyphicon glyphicon-earphone"></i></button>
+                        @action('conversation.new.conv_switch_buttons')
                     </div>
                 </div>
 
@@ -45,6 +46,7 @@
             </div>
         </div>
         <div id="conv-layout-customer">
+            @include('conversations/partials/customer_sidebar')
             @action('conversation.new.customer_sidebar', $conversation, $mailbox)
         </div>
         <div id="conv-layout-main" class="conv-new-form">
@@ -129,9 +131,23 @@
                                 </div>
 
                                 <div class="col-sm-9 col-sm-offset-2 toggle-field phone-conv-fields" id="toggle-email">
-                                    <a href="javascript:void(0);">{{ __('Add Email') }}</a>
+                                    <a href="#">{{ __('Add Email') }}</a>
                                 </div>
                             </div>
+
+                            @if (count($from_aliases))
+                                <div class="form-group email-conv-fields">
+                                    <label class="col-sm-2 control-label">{{ __('From') }}</label>
+
+                                    <div class="col-sm-9">
+                                        <select name="from_alias" class="form-control">
+                                            @foreach ($from_aliases as $from_alias_email => $from_alias_name)
+                                                <option value="@if ($from_alias_email != $mailbox->email){{ $from_alias_email }}@endif" @if (!empty($from_alias) && $from_alias == $from_alias_email)selected="selected"@endif>@if ($from_alias_name){{ $from_alias_email }} ({{ $from_alias_name }})@else{{ $from_alias_email }}@endif</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                            @endif
 
                             <div class="form-group{{ $errors->has('to') ? ' has-error' : '' }}" id="field-to">
                                 <label for="to" class="col-sm-2 control-label">{{ __('To') }}</label>
@@ -188,9 +204,10 @@
                             </div>
 
                             <div class="col-sm-9 col-sm-offset-2 email-conv-fields toggle-field @if ($conversation->cc && $conversation->bcc) hidden @endif">
-                                <a href="javascript:void(0);" class="help-link" id="toggle-cc">Cc/Bcc</a>
+                                <a href="#" class="help-link" id="toggle-cc">Cc/Bcc</a>
                             </div>
 
+                            @action('conversation.create_form.before_subject', $conversation, $mailbox, $thread)
                             <div class="form-group{{ $errors->has('subject') ? ' has-error' : '' }}">
                                 <label for="subject" class="col-sm-2 control-label">{{ __('Subject') }}</label>
 
@@ -201,8 +218,24 @@
                             </div>
                             @action('conversation.create_form.after_subject', $conversation, $mailbox, $thread)
 
-                            <div class="thread-attachments attachments-upload">
-                                <ul></ul>
+                            @php
+                                if (!isset($attachments)) {
+                                    //$attachments = $conversation->getAttachments();
+                                    $attachments = [];
+                                }
+                            @endphp
+                            <div class="thread-attachments attachments-upload" @if (count($attachments)) style="display: block" @endif>
+                                @foreach ($attachments as $attachment)
+                                    <input type="hidden" name="attachments_all[]" value="{{ $attachment->id }}">
+                                    <input type="hidden" name="attachments[]" value="{{ $attachment->id }}" class="atachment-upload-{{ $attachment->id }}">
+                                @endforeach
+                                <ul>
+                                    @foreach ($attachments as $attachment)
+                                        <li class="atachment-upload-{{ $attachment->id }} attachment-loaded">
+                                            <img src="{{ asset('img/loader-tiny.gif') }}" width="16" height="16"> <a href="{{ $attachment->url() }}" class="break-words" target="_blank">{{ $attachment->file_name }}<span class="ellipsis">…</span> </a> <span class="text-help">({{ $attachment->getSizeName() }})</span> <i class="glyphicon glyphicon-remove" data-attachment-id="{{ $attachment->id }}"></i>
+                                        </li>
+                                    @endforeach
+                                </ul>
                             </div>
 
                             <div class="form-group{{ $errors->has('body') ? ' has-error' : '' }} conv-reply-body">
