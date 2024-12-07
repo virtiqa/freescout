@@ -708,6 +708,7 @@ function mailboxConnectionIncomingInit()
 	    $('#check-connection').click(function(event) {
 	    	var button = $(this);
 	    	button.button('loading');
+	    	$('#fetch_test_log').addClass('hidden');
 	    	fsAjax(
 				{
 					action: 'fetch_test',
@@ -719,6 +720,9 @@ function mailboxConnectionIncomingInit()
 						showFloatingAlert('success', Lang.get("messages.connection_established"), true);
 					} else {
 						showAjaxError(response, true);
+						if (typeof(response.log) != "undefined" && response.log) {
+							$('#fetch_test_log').removeClass('hidden').text(response.log);
+						}
 					}
 					button.button('reset');
 				},
@@ -767,6 +771,13 @@ function mailboxConnectionIncomingInit()
 		});
 
 		$("#in_imap_folders").select2(fs_select2_config);
+
+		$('#form-fetching :input').on('change keyup', function(e) {
+			var btn = $('#check-connection');
+			if (!btn.attr('disabled')) {
+            	btn.attr('disabled', 'disabled');
+            }
+        });
 	});
 }
 
@@ -2026,7 +2037,7 @@ function editorSendFile(file, attach, is_conv, editor_id, container)
 
 function removeAttachment(attachment_id)
 {
-	$('.atachment-upload-'+attachment_id).remove();
+	$('.atachment-upload-'+$.escapeSelector(attachment_id)).remove();
 	//attachment.parent().parent().children(":input[value='"+attachment_id+"']");
 }
 
@@ -2365,6 +2376,12 @@ function getQueryParam(name, qs) {
 
     // Process arrays
     for (var param in params) {
+
+    	// Skip __proto__
+    	// https://github.com/freescout-helpdesk/freescout/security/advisories/GHSA-rx6j-4c33-9h3r
+    	if (param.match(/^__proto__\[/i)) {
+    		continue;
+    	}
     	
     	// Two dimentional
     	var m = param.match(/^([^\[]+)\[([^\[]+)\]$/i);
@@ -4380,7 +4397,7 @@ function showForwardForm(data, reply_block)
 	reply_block.children().find(":input[name='to']:first").addClass('hidden');
 	reply_block.children().find("#cc").val('').trigger('change');
 	reply_block.children().find("#bcc").val('').trigger('change');
-	reply_block.children().find(":input[name='to_email']:first").removeClass('hidden').removeClass('parsley-exclude').next('.select2:first').show();
+	reply_block.children().find(":input[name='to_email[]']:first").removeClass('hidden').removeClass('parsley-exclude').next('.select2:first').show();
 	reply_block.addClass('inactive');
 	reply_block.addClass('conv-forward-block');
 	$(".conv-actions .conv-reply:first").addClass('inactive');

@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Mail\ReplyToCustomer;
+use App\Customer;
 use App\SendLog;
 use App\Thread;
 use App\Misc\SwiftGetSmtpQueueId;
@@ -12,7 +13,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Mail;
-use Webklex\IMAP\Client;
+//use Webklex\IMAP\Client;
 
 class SendReplyToCustomer implements ShouldQueue
 {
@@ -230,6 +231,12 @@ class SendReplyToCustomer implements ShouldQueue
             }
         }
 
+        // Try to get customer by email
+        if (!$this->customer) {
+            $this->customer = Customer::getByEmail($this->customer_email);
+            return;
+        }
+
         $to_array = $mailbox->removeMailboxEmailsFromList($this->last_thread->getToArray());
         $cc_array = $mailbox->removeMailboxEmailsFromList($this->last_thread->getCcArray());
         $bcc_array = $mailbox->removeMailboxEmailsFromList($this->last_thread->getBccArray());
@@ -367,14 +374,18 @@ class SendReplyToCustomer implements ShouldQueue
                 
                 $client->connect();
 
-                $mail_from = $mailbox->getMailFrom(null, $this->conversation);
+                $mail_from = $mailbox->getMailFrom($this->last_thread->created_by_user ?? null, $this->conversation);
 
                 if (!empty($mail_from['name'])) {
                     $envelope['from'] = '"'.$mail_from['name'].'" <'.$mail_from['address'].'>';
                 } else {
                     $envelope['from'] = $mail_from['address'];
                 }
-                $envelope['to'] = $this->customer_email;
+                if (is_array($to) && !empty($to[0]) && !empty($to[0]['name']) && !empty($to[0]['email'])) {
+                    $envelope['to'] = '"'.$to[0]['name'].'" <'.$to[0]['email'].'>';
+                } else {
+                    $envelope['to'] = $this->customer_email;
+                }
                 $envelope['subject'] = $subject;
                 $envelope['date'] = now()->toRfc2822String();
                 $envelope['message_id'] = $this->message_id;
@@ -402,7 +413,9 @@ class SendReplyToCustomer implements ShouldQueue
                 if ($this->last_thread->has_attachments) {
                     $multipart = [];
                     $multipart["type"] = TYPEMULTIPART;
-                    $multipart["subtype"] = "alternative";
+                    $multipart["subtype"] = "mixed";
+                    // https://github.com/freescout-helpdesk/freescout/issues/3934
+                    //$multipart["subtype"] = "alternative";
                     $parts[] = $multipart;
                 }
 

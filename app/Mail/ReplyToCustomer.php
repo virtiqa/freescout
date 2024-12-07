@@ -135,9 +135,6 @@ class ReplyToCustomer extends Mailable
                     ->view('emails/customer/reply_fancy')
                     ->text('emails/customer/reply_fancy_text');
 
-         // commented out in merge
-        // $thread = $this->threads->first();
-
         if ($thread->has_attachments) {
             foreach ($thread->attachments as $attachment) {
                 if ($attachment->fileExists()) {
